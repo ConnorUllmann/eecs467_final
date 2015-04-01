@@ -264,6 +264,9 @@ int main(int argc, char** argv)
 		if (buttonStates.colorMask) {
 			maskWithColors(render.im, calibrationInfo);
 		}
+        if(buttonStates.predictMask) {
+            maskWithPrediction(GamePlayer::instance()->getBallPos(), render.im, calibrationInfo);
+        }
 /*        
 		if (buttonStates.boardMask) {
 			maskWithBoard(render.im, calibrationInfo);

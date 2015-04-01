@@ -4,6 +4,7 @@
 #include "math/angle_functions.hpp"
 #include "CoordinateConverter.hpp"
 #include "GamePlayer.hpp"
+#include "ballpath.cpp"
 #include <stdio.h>
 
 
@@ -22,6 +23,27 @@ OBJECT determineObjectHSV(std::array<float, 3> hsv, const CalibrationInfo &c) {
 	if(eecs467::angle_between(c.blueSquareHue[0], c.blueSquareHue[1], hsv[0]))
 		return BLUESQUARE;
 	return NONE;
+}
+
+void maskWithPrediction(vector<BlobDetector::Blob> blobs, image_u32_t* im, const CalibrationInfo& c)
+{
+    // std::cout << "Number of blobs: " << blobs.size() << std::endl;
+    const int DISTANCE = 10;
+    auto pos = predictPath2(blobs);
+    for (int row = 0; row < im->height; row++) {
+        for (int col = 0; col < im->width; col++) {
+            for(int i = 0; i < pos.size(); i++) {
+                if (row < c.maskYRange[0] || row > c.maskYRange[1] ||
+                    col < c.maskXRange[0] || col > c.maskXRange[1]) {
+                    im->buf[row * im->stride + col] = 0x00;
+                    continue;
+                }
+
+                if((pos[i].x - col) * (pos[i].x - col) + (pos[i].y - row) * (pos[i].y - row) <= DISTANCE)
+                    im->buf[row * im->stride + col] = 0xFFFF00FF;
+            }
+        }
+    }
 }
 
 void maskWithColors(image_u32_t* im, const CalibrationInfo& c) {

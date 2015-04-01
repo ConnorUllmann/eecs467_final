@@ -1,6 +1,7 @@
 #ifndef CALIBRATION_INFO_HPP
 #define CALIBRATION_INFO_HPP
 
+#include <array>
 
 struct CalibrationInfo {
 	std::array<int, 2> maskXRange; // (low, high) x range

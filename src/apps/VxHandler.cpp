@@ -32,6 +32,7 @@ VxHandler::VxHandler(int width, int height) :
 	}
 
 	buttonStates.colorMask = false;
+    buttonStates.predictMask = false;
 	buttonStates.blobDetect = false;
 	buttonStates.moveArm = false;
     buttonStates.manual = false;
@@ -46,6 +47,7 @@ VxHandler::VxHandler(int width, int height) :
 		"butCoordConv", "Coordinate Convert",
         "butMoveArm", "Move Arm",
 		"butColMask", "Color Mask",
+        "butPredictMask", "Predict Mask",
 		"butBlobDet", "Blob Detect",
         "butManual", "Manual",
 		"butRun", "Run",
@@ -320,7 +322,9 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
     } else if (strName == "butColMask") {
 		// color mask
 		buttonStates.colorMask = !buttonStates.colorMask;
-	} else if (strName == "butBlobDet") {
+	} else if (strName == "butPredictMask") {
+        buttonStates.predictMask = !buttonStates.predictMask;
+    } else if (strName == "butBlobDet") {
 		// blob detect
 		buttonStates.blobDetect = !buttonStates.blobDetect;
 	} else if (strName == "butManual") {

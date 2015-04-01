@@ -60,4 +60,6 @@ const int LEFT = -1;
 const int STATION = 0;
 const int RIGHT = 1;
 
+enum OBJECT : uint8_t { NONE, REDBALL, GREENBALL, BLUESQUARE };
+
 #endif /* CONSTANTS_HPP */

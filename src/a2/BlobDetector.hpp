@@ -5,8 +5,9 @@
 #include <iostream>
 #include <stdint.h>
 #include "imagesource/image_u32.h"
-#include "ColorRecognizer.hpp"
 #include "Matrix.hpp"
+#include "Constants.hpp"
+#include "CalibrationInfo.hpp"
 
 
 namespace BlobDetector {

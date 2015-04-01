@@ -1,6 +1,7 @@
 #include "BlobDetector.hpp"
 #include "Matrix.hpp"
 #include "CoordinateConverter.hpp"
+#include "ColorRecognizer.hpp"
 
 using namespace BlobDetector;
 

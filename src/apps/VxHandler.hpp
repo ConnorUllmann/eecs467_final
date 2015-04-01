@@ -37,6 +37,7 @@
 
 struct VxButtonStates {
 	bool colorMask;
+    bool predictMask;
 	bool blobDetect;
 	bool moveArm;
 	// bool dropBall;
