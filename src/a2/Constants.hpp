@@ -56,4 +56,8 @@ const float boardDiagonalLength = 0.34; // center of blue to center of blue
 const float blueSquareSideLength = 0.06; // meters
 const float blueSquareDiagonalLength = 0.08202438; // meters
 
+const int LEFT = -1;
+const int STATION = 0;
+const int RIGHT = 1;
+
 #endif /* CONSTANTS_HPP */

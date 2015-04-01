@@ -11,39 +11,31 @@
 GamePlayer* GamePlayer::_instance = new GamePlayer;
 
 GamePlayer::GamePlayer() {
-	_ourColor = NONE;
-	_theirColor = NONE;
-	their_turn = 0;
-	our_turn = 0;
-	go = false;
+	_ballColor = NONE;
+    _ballPos.clear();
+    _direction = STATION;
 }
 
 GamePlayer* GamePlayer::instance() {
 	return _instance;
 }
 
-void GamePlayer::init(OBJECT ourColor)
+void GamePlayer::init(OBJECT ballColor)
 {
-	_ourColor = ourColor;
-	if (_ourColor == REDBALL) {
-		_theirColor = GREENBALL;
-	} else {
-		_theirColor = REDBALL;
-	}
-	go = false;
-
-	our_turn = 0;
-	their_turn = 0;
+	_ballColor = ballColor;
+    _ballPos.clear();
+    _direction = STATION;
 }
+
 
 void GamePlayer::launchThreads() {
 	pthread_create(&_gamePlayerPid, NULL,
 		&GamePlayer::gameThread, this);
-	pthread_create(&_messagesPid, NULL,
-		&GamePlayer::publishMessages, this);
+	// pthread_create(&_messagesPid, NULL,
+	// 	&GamePlayer::publishMessages, this);
 				
 }
-
+/*
 void* GamePlayer::publishMessages(void* args){
 	GamePlayer* state = (GamePlayer*) args;
 	ttt_turn_t turnMessage;
@@ -61,34 +53,18 @@ void* GamePlayer::publishMessages(void* args){
 	}
 	return NULL;
 }
-
+*/
 void* GamePlayer::gameThread(void* args) {
 	GamePlayer* state = (GamePlayer*) args;
 
-	while (!GlobalState::instance()->getStart());
+    int newDir = LEFT;
 
-	while (1) {
+    while (1) {
+        while (!GlobalState::instance()->getStart()) {usleep(10000);};
+
 		pthread_mutex_lock(&state->_GamePlayerMutex);
 
-		if (state->_ourColor == REDBALL) {
-			if (state->their_turn != state->our_turn) {
-				pthread_mutex_unlock(&state->_GamePlayerMutex);
-				continue;
-			}
-		} else if (state->_ourColor == GREENBALL) {
-			if (state->their_turn <= state->our_turn) {
-				pthread_mutex_unlock(&state->_GamePlayerMutex);
-				continue;
-			}
-		} else {
-			pthread_mutex_unlock(&state->_GamePlayerMutex);
-			continue;
-		}
-
-		printf("Turn: %d\n", state->our_turn);
-		state->go = false;
-    
-		RenderInfo renderInfo = GlobalState::instance()->getData();
+		RenderInfo renderInfo(GlobalState::instance()->getData());
 
 
         if (renderInfo.im == nullptr) {
@@ -97,93 +73,109 @@ void* GamePlayer::gameThread(void* args) {
         }
 		// take in board state and blobs or w/e
 		std::vector<BlobDetector::Blob> blobs = 
-			BlobDetector::findBlobs(renderInfo.im,
+			BlobDetector::findGreenBlobs(renderInfo.im,
 			CalibrationHandler::instance()->getCalibration(),
 			blobMinPixels);
 
-		// separate out blobs
-		std::vector<BlobDetector::Blob> unusedBalls;
-		state->_board.clearBoard();
-		for (auto& blob : blobs) {
-			if (blob.type == NONE) {
-				pthread_mutex_unlock(&state->_GamePlayerMutex);
-				continue;
-			}
-			std::array<float, 2> globalCoords = 
-				CoordinateConverter::imageToGlobal(std::array<int, 2>{{blob.x, blob.y}});
-			std::array<int, 2> boardCoords = 
-				CoordinateConverter::globalToBoard(globalCoords);
+        if (blobs.size() <= 0) {
+            std::cout << "Can't detect any green ball\n";
+            pthread_mutex_unlock(&state->_GamePlayerMutex);
+            usleep(100000);
+            continue;
+        }
 
-			if (blob.type == state->_ourColor) {
-				if (Board::indexInBounds(boardCoords[0], boardCoords[1])) {
-					state->_board(boardCoords[0], boardCoords[1]) = state->_ourColor;
-				} else {
-					unusedBalls.push_back(blob);
-				}
-			} else {
-				if (Board::indexInBounds(boardCoords[0], boardCoords[1])) {
-					state->_board(boardCoords[0], boardCoords[1]) = state->_theirColor;
-				}
-			}
-		}
+        if (blobs.size() > 1) {
+            std::cout << "Detected multiple ball\n";
+        }
 
-		state->_board.printBoard();
-		int move = state->_board.getNextMove(state->_ourColor);
+// std::cout << "blob size " << blobs.size() << "\n";
+		
+        if (!state->_ballPos.empty()) {
+            newDir = state->calculateBallDirection(state->_ballPos.back(), blobs[blobs.size()/2]);
 
-		if (move == -1 || state->_board.full()) {
-			printf("End Game!\n");
-			break;
-		}
-		if(state->_board.hasWon(REDBALL))
-		{
-			printf("Red player has won!\n");
-			break;
-		}
-		if(state->_board.hasWon(GREENBALL))
-		{
-			printf("Green player has won!\n");
-			break;
-		}
-		std::array<int, 2> boardMove{{Board::toRow(move),
-			Board::toCol(move)}};
-		//printf("%d, %dcurrent\n", boardMove[0], boardMove[1]);
+            if (state->_ballPos.size() >= 50000) {
+                state->_ballPos.clear();
+            }
+        }
 
-		// pick up random ball
-		printf("Number of unused balls: %d\n", unusedBalls.size());
-		if (!unusedBalls.empty()) {
-			BlobDetector::Blob grabBall = unusedBalls.front();
-			std::array<float, 2> globalCoords = 
-				CoordinateConverter::imageToGlobal(std::array<int, 2>{{grabBall.x, grabBall.y}});
-			printf("global arm: %f, %f\n", globalCoords[0], globalCoords[1]);
-			if (!Arm::instance()->addCommandGrabBall(globalCoords)) {
-				printf("Can't reach ball\n");
-			}
-		}
-		// put ball
-		Arm::instance()->addCommandDropBall(boardMove);
 
-		// state->our_turn++;
+        if (newDir != STATION) {
+
+// std::cout << "new dir " << newDir << "\n";
+
+            if ((state->_direction == LEFT && newDir == RIGHT) ||
+                    (state->_direction == RIGHT && newDir == LEFT) ) {
+                state->_ballPos.clear();
+            }
+            state->_direction = newDir;
+
+            state->_ballPos.push_back(blobs[blobs.size()/2]);
+// std::cout << "ballpos size " << state->_ballPos.size() << " x " << blobs[blobs.size()/2].x << " y " << blobs[blobs.size()/2].y << " \n";
+        }
+
+
 		pthread_mutex_unlock(&state->_GamePlayerMutex);
+        
+        // ################prediction here
+
+        // ################ai here
 
 		while (1) {
 			if (!Arm::instance()->inMotion()) {
 				break;
 			}
+            usleep(1000);
 		}
 
-		pthread_mutex_lock(&state->_GamePlayerMutex);
-		state->our_turn++;
-		pthread_mutex_unlock(&state->_GamePlayerMutex);
-		printf("\n");
 	}
 	pthread_mutex_unlock(&state->_GamePlayerMutex);
 
 	return NULL;
 }
 
+/*
 void GamePlayer::checkIfYourTurn(const ttt_turn_t* msg){
 	pthread_mutex_lock(&_GamePlayerMutex);
 	their_turn = msg->turn;
 	pthread_mutex_unlock(&_GamePlayerMutex);
 }
+*/
 
+int GamePlayer::calculateBallDirection(BlobDetector::Blob& b1, BlobDetector::Blob& b2) {
+    int dir = b1.x-b2.x;
+
+// std::cout << "b1 " << b1.x << "," << b1.y << " | b2 " << b2.x << "," << b2.y << endl;
+
+    if (abs(dir) <= 1 && abs(b1.y-b2.y) <= 1) {
+        return STATION;
+    }
+    if (dir > 0) {
+        return LEFT;
+    }
+    if (dir < 0) {
+        return RIGHT;
+    }
+    return STATION;
+}
+
+std::vector<BlobDetector::Blob> GamePlayer::getBallPos() {
+    // pthread_mutex_lock(&_GamePlayerMutex);
+    
+    std::vector<BlobDetector::Blob> ret = _ballPos;
+    
+    // pthread_mutex_unlock(&_GamePlayerMutex);
+    return ret;
+}
+
+int GamePlayer::getDirection() {
+    // pthread_mutex_lock(&_GamePlayerMutex);
+    
+    int ret = _direction;
+    
+    // pthread_mutex_unlock(&_GamePlayerMutex);
+    return ret;
+}
+
+void GamePlayer::clearBallPos() {
+    _ballPos.clear();
+}

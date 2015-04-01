@@ -34,20 +34,22 @@ VxHandler::VxHandler(int width, int height) :
 	buttonStates.colorMask = false;
 	buttonStates.blobDetect = false;
 	buttonStates.moveArm = false;
+    buttonStates.manual = false;
+
 
 	pg = pg_create();
 	pg_add_buttons(pg,
-		"but1", "Calibrate Masking",
-		"but2", "Calibrate Colors",
-		"but3", "Calibrate Global Transform",
-		"but4", "Save Image",
-		"but5", "Pick Up Ball",
-		"but9", "Drop Ball",
-		"but6", "Coordinate Convert",
-		"but7", "Color Mask",
-		"but10", "Board Mask",
-		"but8", "Blob Detect",
-		"but11", "Run",
+		"butMask", "Calibrate Masking",
+		"butColor", "Calibrate Colors",
+		"butGlobalTrans", "Calibrate Global Transform",
+		"butSaveIm", "Save Image",
+		"butCoordConv", "Coordinate Convert",
+        "butMoveArm", "Move Arm",
+		"butColMask", "Color Mask",
+		"butBlobDet", "Blob Detect",
+        "butManual", "Manual",
+		"butRun", "Run",
+        "butStop", "Stop",
 		NULL);
 	pgListener = (parameter_listener_t*) calloc(1, sizeof(parameter_listener_t));
 	pgListener->impl = this;
@@ -84,12 +86,14 @@ void* VxHandler::renderThread(void* args) {
 			continue;
 		}
 
+        vx_buffer_t* stateBuf = vx_world_get_buffer(state->vxWorld, "state");
+
 		vx_object_t* vim = vxo_chain(
 			vxo_mat_translate3(-0.5, 
 				-0.5 * ((float)renderInfo.im->height / renderInfo.im->width), 0),
 			vxo_mat_scale(1.0 / renderInfo.im->width),
 			vxo_image_from_u32(renderInfo.im, VXO_IMAGE_FLIPY, 0));
-		vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vim);
+		vx_buffer_add_back(stateBuf, vim);
 
 
 		std::string message = CalibrationHandler::instance()->getMessage();
@@ -97,9 +101,11 @@ void* VxHandler::renderThread(void* args) {
 		vx_object_t* vtext = vxo_chain(
 			vxo_mat_translate3(400, 40, 0),
 			vxo_text_create(VXO_TEXT_ANCHOR_CENTER, message.c_str()));
-		vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vxo_pix_coords(VX_ORIGIN_BOTTOM_LEFT, vtext));
+		vx_buffer_add_back(stateBuf, vxo_pix_coords(VX_ORIGIN_BOTTOM_LEFT, vtext));
 
 		if (buttonStates.blobDetect) {
+            vx_resc_t* verts;
+            /*
 			std::vector<float> redPoints;
 			for (auto& blob : renderInfo.redBlobs) {
 				redPoints.push_back(blob[0]);
@@ -108,7 +114,7 @@ void* VxHandler::renderThread(void* args) {
 			}
 			vx_resc_t* verts = vx_resc_copyf(redPoints.data(), redPoints.size());
 			vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vxo_points(verts, redPoints.size() / 3, vxo_points_style(vx_red, 5.0f)));			
-
+            */
 
 			std::vector<float> greenPoints;
 			for (auto& blob : renderInfo.greenBlobs) {
@@ -117,7 +123,7 @@ void* VxHandler::renderThread(void* args) {
 				greenPoints.push_back(0);
 			}
 			verts = vx_resc_copyf(greenPoints.data(), greenPoints.size());
-			vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vxo_points(verts, greenPoints.size() / 3, vxo_points_style(vx_green, 5.0f)));	
+			vx_buffer_add_back(stateBuf, vxo_points(verts, greenPoints.size() / 3, vxo_points_style(vx_green, 5.0f)));	
 
 			std::vector<float> bluePoints;
 			for (auto& blob : renderInfo.blueBlobs) {
@@ -125,15 +131,67 @@ void* VxHandler::renderThread(void* args) {
 				bluePoints.push_back(blob[1]);
 				bluePoints.push_back(0);
 			}
+
 			verts = vx_resc_copyf(bluePoints.data(), bluePoints.size());
-			vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vxo_points(verts, bluePoints.size() / 3, vxo_points_style(vx_blue, 5.0f)));
+			vx_buffer_add_back(stateBuf, vxo_points(verts, bluePoints.size() / 3, vxo_points_style(vx_blue, 5.0f)));
 		}
+
+
+
+        if (renderInfo.start) {
+// cout << " renderInfo.Start " << renderInfo.start<< endl;
+
+
+            std::vector<float> redPoints;
+            std::vector<BlobDetector::Blob> ballPos = GamePlayer::instance()->getBallPos();
+            int direction = GamePlayer::instance()->getDirection();
+            for (auto& blob : ballPos) {
+                std::array<int, 2> imageCoords{{blob.x, blob.y}};
+                std::array<float, 2> screenCoords = 
+                    CoordinateConverter::imageToScreen(imageCoords);
+
+                redPoints.push_back(screenCoords[0]);
+                redPoints.push_back(screenCoords[1]);
+                redPoints.push_back(0);
+            }
+
+// for (int i : redPoints) {
+//     std::cout << i <<",";
+// }
+// std::cout << "\n";
+
+// usleep(1000000);
+// cout << "red pos size " << redPoints.size() << endl;
+
+            vx_resc_t* verts = vx_resc_copyf(redPoints.data(), redPoints.size());
+            vx_buffer_add_back(stateBuf, vxo_points(verts, redPoints.size() / 3, vxo_points_style(vx_red, 5.0f)));          
+            
+            string m = "<<#ffaa00>> Ball Direction: ";
+
+            switch (direction) {
+                case STATION:
+                    m += "STATION";
+                    break;
+                case LEFT:
+                    m += "LEFT";
+                    break;
+                case RIGHT:
+                    m += "RIGHT";
+                    break;
+                default:
+                    m += "UNKNOWN DIRECTION";
+                    break;
+            }
+
+            vx_object_t *text = vxo_text_create(VXO_TEXT_ANCHOR_TOP_LEFT, m.c_str()); 
+            vx_buffer_add_back(stateBuf, vxo_pix_coords(VX_ORIGIN_TOP_LEFT, text));
+        }
 
 		pthread_mutex_unlock(&state->renderMutex);
 
 
-		vx_buffer_swap(vx_world_get_buffer(state->vxWorld, "state"));
-		usleep(1e3);
+		vx_buffer_swap(stateBuf);
+		usleep(1000);
 	}
 
 	return NULL;
@@ -156,7 +214,7 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 	RenderInfo renderInfo = GlobalState::instance()->getData();
 
 	if ((mouse->button_mask & VX_BUTTON1_MASK) &&
-		!(state->last_mouse_event.button_mask & VX_BUTTON1_MASK)) {
+		  !(state->last_mouse_event.button_mask & VX_BUTTON1_MASK)) {
 		vx_ray3_t ray;
 		vx_camera_pos_compute_ray (pos, mouse->x, mouse->y, &ray);
 
@@ -174,12 +232,14 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 			std::array<float, 2> globalCoords = 
 				CoordinateConverter::imageToGlobal(imageCoords);
 
+            // ###################################################### change command to move not grab
 			if (!Arm::instance()->addCommandGrabBall(globalCoords)) {
 				printf("Can't move there\n");
 			}
 
 			buttonStates.moveArm = false;
 		}
+        /*
 		if (buttonStates.dropBall) {
 			std::array<int, 2> imageCoords = 
 				CoordinateConverter::screenToImage(std::array<float, 2>{{(float)ground[0], 
@@ -193,6 +253,7 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 
 			buttonStates.dropBall = false;
 		}
+        */
 		pthread_mutex_unlock(&renderMutex);
 
 	}
@@ -206,6 +267,9 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 int VxHandler::key_event(vx_event_handler_t *vxeh, vx_layer_t *vl, vx_key_event_t *key)
 {
 	//state_t *state = vxeh->impl;
+
+    // handle manual mode here
+
 	return 0;
 }
 
@@ -220,55 +284,87 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
 
 	pthread_mutex_lock(&renderMutex);
 	std::string strName(name);
-	if (strName == "but1") {
+	if (strName == "butMask") {
 		// calibrate mask
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->calibrateMask();
 		}
-	} else if (strName == "but2") {
+	} else if (strName == "butColor") {
 		// calibrate hsv
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->calibrateHsv();
 		}
-	} else if (strName == "but3") {
+	} else if (strName == "butGlobalTrans") {
 		// calibrate board transform
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->calibrateBoardTransform();
 		}
-	} else if (strName == "but4") {
+	} else if (strName == "butSaveIm") {
 		RenderInfo renderInfo = GlobalState::instance()->getData();
 		//save image
 		int res = image_u32_write_pnm(renderInfo.im, imageFileName.c_str());
 		if (res) {
 			std::cout << "did not save image successfully\n";
 		}
-	} else if (strName == "but5") {
-		// move arm
-		if (CalibrationHandler::instance()->isIdle()) {
-			buttonStates.moveArm = true;
-		}
-	} else if (strName == "but6") {
+	} else if (strName == "butCoordConv") {
 		// coordinate convert
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->coordTransform();
 		}
-	} else if (strName == "but7") {
+	} else if (strName == "butMoveArm") {
+        // move arm to location clicked
+        if (CalibrationHandler::instance()->isIdle()) {
+            // do sth like pick and place code, but just move arm
+            buttonStates.moveArm = true;
+        }
+    } else if (strName == "butColMask") {
 		// color mask
 		buttonStates.colorMask = !buttonStates.colorMask;
-	} else if (strName == "but8") {
+	} else if (strName == "butBlobDet") {
 		// blob detect
 		buttonStates.blobDetect = !buttonStates.blobDetect;
-	} else if (strName == "but9") {
-		// drop ball
-		if (CalibrationHandler::instance()->isIdle()) {
-			buttonStates.dropBall = true;
-		}
-	} else if (strName == "but10") {
-	    // show valid board pixels
-	    buttonStates.boardMask = !buttonStates.boardMask;
-	} else if (strName == "but11") {
-		GlobalState::instance()->setStart(true);
-	}
+	} else if (strName == "butManual") {
+        // manually control the arm
+
+        // turn off automatic mode
+        if (GlobalState::instance()->getStart()) {
+            GlobalState::instance()->setStart(false);
+            std::cout << "turn off auto mode to start manual mode\n";
+        }
+        if (CalibrationHandler::instance()->isIdle()) {
+            buttonStates.manual = true;
+        }
+        else {
+            std::cout << "Calibation busy, please try again later\n";
+        }
+
+    } else if (strName == "butRun") {
+        if (CalibrationHandler::instance()->isIdle()) {
+            if (buttonStates.manual) {
+                buttonStates.manual = false;
+                std::cout << "turn off manual mode to start auto mode\n";
+            }
+    		GlobalState::instance()->setStart(true);
+        }
+        else {
+            std::cout << "Calibation busy, please try again later\n";
+        }
+        // GlobalState::instance()->setManual(false);
+	} else if (strName == "butStop") {
+        GamePlayer::instance()->clearBallPos();
+
+        if (GlobalState::instance()->getStart()) {
+            GlobalState::instance()->setStart(false);
+            std::cout << "stop auto mode\n";
+        }
+        if (buttonStates.manual) {
+            buttonStates.manual = false;
+            std::cout << "stop manual mode\n";
+        }
+    } else {
+        std::cout << "ERROR::invalid button pressed: " << strName << "\n";
+    }
+
 	pthread_mutex_unlock(&renderMutex);
 }
 

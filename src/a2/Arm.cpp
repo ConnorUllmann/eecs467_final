@@ -79,13 +79,18 @@ bool Arm::forwardKinematics(std::array<float, 2>& arr) const {
 	pthread_mutex_lock(&_armMutex);
 	if (_list.statuses.size() == 0) {
 		pthread_mutex_unlock(&_armMutex);
+
+// std::cout << ">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!! list status size is 0!!!!!!!!!!!!!!!!!" << std::endl;
+
+// printf(">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!! list status size is 0!!!!!!!!!!!!!!!!!\n");
+
 		return false;
 	}
 
 	float length = ARM_LENGTH_1 * sin(_list.statuses[1].position_radians) +
 		ARM_LENGTH_2 * sin(_list.statuses[1].position_radians + 
 			_list.statuses[2].position_radians) +
-		(ARM_LENGTH_3 + CLAW_LENGTH) * sin(_list.statuses[1].position_radians + 
+		ARM_LENGTH_3 * sin(_list.statuses[1].position_radians + 
 			_list.statuses[2].position_radians +
 			_list.statuses[3].position_radians);
 	float x = -length * cos(_list.statuses[0].position_radians);
@@ -93,6 +98,10 @@ bool Arm::forwardKinematics(std::array<float, 2>& arr) const {
 	pthread_mutex_unlock(&_armMutex);
 
 	arr = std::array<float, 2>{{x, y}};
+
+// std::cout << ">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!!" << x << "," << y << std::endl;
+// printf(">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!!%f,%f\n", x, y);
+
 	return true;
 }
 

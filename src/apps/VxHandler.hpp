@@ -11,6 +11,7 @@
 #include "a2/CalibrationHandler.hpp"
 #include "a2/CalibrationInfo.hpp"
 #include "a2/GlobalState.hpp"
+#include "a2/GamePlayer.hpp"
 
 #include "vx/vx.h"
 #include "vx/vx_util.h"
@@ -38,8 +39,9 @@ struct VxButtonStates {
 	bool colorMask;
 	bool blobDetect;
 	bool moveArm;
-	bool dropBall;
-	bool boardMask;
+	// bool dropBall;
+	// bool boardMask;
+    bool manual;
 };
 
 extern VxButtonStates buttonStates;

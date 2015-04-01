@@ -26,6 +26,25 @@ std::vector<std::array<int, 2>> findAndMarkBlob(Matrix<BlobCell>& mat, int x, in
 std::array<int, 2> findCentroid(std::vector<std::array<int, 2>>& points);
 
 
+std::vector<Blob> BlobDetector::findGreenBlobs(image_u32_t* im, const CalibrationInfo& calib, size_t minPixels) {
+    Matrix<BlobCell> mat = imageToMatrix(im, calib);
+    std::vector<Blob> ret;
+    for (int row = calib.maskYRange[0]; row < calib.maskYRange[1]; ++row) {
+        for (int col = calib.maskXRange[0]; col < calib.maskXRange[1]; ++col) {
+            BlobCell& cell = mat(row, col);
+            if (cell.type == GREENBALL && !cell.partOfBlob) {
+                std::vector<std::array<int, 2>> currBlob = findAndMarkBlob(mat, col, row);
+                if (currBlob.size() < minPixels) {
+                    continue;
+                }
+                std::array<int, 2> center = findCentroid(currBlob);
+                ret.push_back({center[0], center[1], (int)currBlob.size(), cell.type});
+            }
+        }
+    }
+    return ret;
+}
+
 std::vector<Blob> BlobDetector::findBlobs(image_u32_t* im, const CalibrationInfo& calib, size_t minPixels) {
 	// turn image into matrix of BlobCells
 	Matrix<BlobCell> mat = imageToMatrix(im, calib);

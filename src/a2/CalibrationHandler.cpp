@@ -250,7 +250,7 @@ void CalibrationHandler::calibrateMask() {
 
 void CalibrationHandler::calibrateHsv() {
 	pthread_mutex_lock(&_calibMutex);
-	_state = HSV1;
+	_state = HSV2; // skip red ball
 	pthread_mutex_unlock(&_calibMutex);
 }
 

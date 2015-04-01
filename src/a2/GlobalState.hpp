@@ -13,6 +13,7 @@ struct RenderInfo {
 	std::vector<std::array<float, 2>> greenBlobs;
 	std::vector<std::array<float, 2>> blueBlobs;
 	bool start;
+    // bool manual;
 
 	RenderInfo();
 	~RenderInfo();
@@ -26,6 +27,7 @@ private:
 	pthread_mutex_t _dataMutex;
 	RenderInfo _data;
 	GlobalState();
+
 	static GlobalState* _instance;
 
 public:
@@ -38,6 +40,12 @@ public:
 	void setStart(bool startIn);
 
 	bool getStart();
+
+    // std::vector<std::array<float, 2>> getGreenBlob();
+
+    // void setManual(bool startIn);
+
+    // bool getManual();
 };
 
 

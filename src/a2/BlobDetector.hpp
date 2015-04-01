@@ -38,6 +38,9 @@ std::vector<Blob> findBlobs(image_u32_t* im, const CalibrationInfo& calib, size_
 // for use in findBlobs
 std::vector<Blob> findBlobsFromMatrix(Matrix<BlobCell>& mat, const CalibrationInfo& calib, size_t minPixels);
 
+std::vector<Blob> findGreenBlobs(image_u32_t* im, const CalibrationInfo& calib, size_t minPixels);
+
+
 
 }
 

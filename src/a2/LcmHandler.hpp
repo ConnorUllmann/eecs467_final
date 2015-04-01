@@ -14,7 +14,7 @@ private:
 	lcm::LCM _lcm;
 	pthread_t _lcmThreadPid;
 
-	std::string opponentColor;
+	// std::string opponentColor;
 
 	pthread_mutex_t _statusMutex;
 	LcmHandler();
@@ -23,7 +23,7 @@ private:
 public:
 	static LcmHandler* instance();
 
-	void setOpponentColor(std::string color);
+	// void setOpponentColor(std::string color);
 
 	void handleStatusMessage(const lcm::ReceiveBuffer* rbuf,
 		const std::string& chan, 
@@ -31,9 +31,9 @@ public:
 
 	void launchThreads();
 
-	void handleTurnMessage(const lcm::ReceiveBuffer* rbuf,
-		const std::string& chan, 
-		const ttt_turn_t* msg);
+	// void handleTurnMessage(const lcm::ReceiveBuffer* rbuf,
+	// 	const std::string& chan, 
+	// 	const ttt_turn_t* msg);
 
 
 	lcm::LCM* getLcm();

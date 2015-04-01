@@ -173,9 +173,9 @@ int main(int argc, char** argv)
 	// getopt
 	getopt_t* gopt = getopt_create();
 	getopt_add_string(gopt, 'f', "file", "", "Use static camera image");
-	getopt_add_string(gopt, 'c', "color", "red", "Specify what color team you are: \"red\" or \"green\"");
-	getopt_add_bool(gopt, 'r', "red", false, "use this option to specify red team");
-	getopt_add_bool(gopt, 'g', "green", false, "use this option to specify green team");
+	// getopt_add_string(gopt, 'c', "color", "red", "Specify what color team you are: \"red\" or \"green\"");
+	// getopt_add_bool(gopt, 'r', "red", false, "use this option to specify red team");
+	// getopt_add_bool(gopt, 'g', "green", false, "use this option to specify green team");
 
 	if (!getopt_parse(gopt, argc, argv, 1)) {
 		getopt_do_usage(gopt);
@@ -192,6 +192,7 @@ int main(int argc, char** argv)
 	CalibrationHandler::instance()->calibrateImageSize(tempIm->height, tempIm->width, true);
 	image_u32_destroy(tempIm);
 
+/*
 	OBJECT color;
 	bool redTeam = getopt_get_bool(gopt, "red");
 	bool greenTeam = getopt_get_bool(gopt, "green");
@@ -207,24 +208,28 @@ int main(int argc, char** argv)
 		color = GREENBALL;
 	}
 	
-	GamePlayer::instance()->init(color);
+*/
+    GamePlayer::instance()->init(GREENBALL);
 	GamePlayer::instance()->launchThreads();
 
 	// lcm
 	LcmHandler::instance()->launchThreads();
+/*
 	if(redTeam)
 		LcmHandler::instance()->setOpponentColor("GREEN_TURN");
 	else
 		LcmHandler::instance()->setOpponentColor("RED_TURN");
+*/
 	// vx
 	VxHandler vx(1024, 768);
 	vx.launchThreads();
-	Arm::instance()->addHomeCommand(0);
+	// Arm::instance()->addHomeCommand(0);
 	while (1) {
 		CalibrationInfo calibrationInfo = 
 			CalibrationHandler::instance()->getCalibration();
 		RenderInfo render;
 		render.im = camera.getImage();
+        render.start = GlobalState::instance()->getStart();
 		CalibrationHandler::instance()->clipImage(render.im);
 /*
 		std::array<float, 2> pos;
@@ -259,13 +264,14 @@ int main(int argc, char** argv)
 		if (buttonStates.colorMask) {
 			maskWithColors(render.im, calibrationInfo);
 		}
+/*        
 		if (buttonStates.boardMask) {
 			maskWithBoard(render.im, calibrationInfo);
 		}
-
+*/
 		GlobalState::instance()->setData(render);
 		
-		usleep(1e3);
+		usleep(1000);
 	}
 
 	getopt_destroy(gopt);

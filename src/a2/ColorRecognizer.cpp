@@ -61,6 +61,7 @@ void maskWithColors(image_u32_t* im, const CalibrationInfo& c) {
 	}
 }
 
+/*
 void maskWithBoard(image_u32_t* im, const CalibrationInfo& c) {
 	for (int row = 0; row < im->height; row++) {
 		for (int col = 0; col < im->width; col++) {
@@ -102,4 +103,4 @@ void maskWithBoard(image_u32_t* im, const CalibrationInfo& c) {
 		}
 	}
 }
-
+*/

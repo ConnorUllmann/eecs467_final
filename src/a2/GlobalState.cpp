@@ -7,17 +7,20 @@
 GlobalState* GlobalState::_instance = new GlobalState;
 
 
-RenderInfo::RenderInfo() : im(nullptr) {}
+RenderInfo::RenderInfo() : im(nullptr), start(false) {}
 
 RenderInfo::~RenderInfo() {
-	image_u32_destroy(im);
+    if (im) {
+	   image_u32_destroy(im);
+    }
 }
 
 void RenderInfo::copy(const RenderInfo& info) {
 	redBlobs = info.redBlobs;
 	greenBlobs = info.greenBlobs;
 	blueBlobs = info.blueBlobs;
-	start = false;
+	start = info.start;
+    // manual = info.manual;
 
 	if (info.im == nullptr) {
 		return;
@@ -32,7 +35,6 @@ void RenderInfo::copy(const RenderInfo& info) {
 	}
 	int size = im->stride * im->height;
 	memcpy(im->buf, info.im->buf, size * sizeof(uint32_t));
-
 }
 
 void RenderInfo::operator=(const RenderInfo& info) {
@@ -49,6 +51,7 @@ void RenderInfo::operator=(const RenderInfo& info) {
 	redBlobs = info.redBlobs;
 	greenBlobs = info.greenBlobs;
 	blueBlobs = info.blueBlobs;
+    start = info.start;
 }
 
 GlobalState::GlobalState() {
@@ -79,13 +82,39 @@ RenderInfo GlobalState::getData() {
 void GlobalState::setStart(bool startIn) {
 	pthread_mutex_lock(&_dataMutex);
 	_data.start = startIn;
+    // if (_data.start && _data.manual) {
+    //     _data.manual = false;
+    // }
 	pthread_mutex_unlock(&_dataMutex);
 }
 
 bool GlobalState::getStart() {
-	pthread_mutex_lock(&_dataMutex);
+	// pthread_mutex_lock(&_dataMutex);
 	bool ret = _data.start;
-	pthread_mutex_unlock(&_dataMutex);
+	// pthread_mutex_unlock(&_dataMutex);
 	return ret;
 }
+/*
+void GlobalState::setManual(bool startIn) {
+    pthread_mutex_lock(&_dataMutex);
+    _data.manual = startIn;
+    if (_data.start && _data.manual) {
+        _data.start = false;
+    }
+    pthread_mutex_unlock(&_dataMutex);
+}
 
+bool GlobalState::getManual() {
+    pthread_mutex_lock(&_dataMutex);
+    bool ret = _data.manual;
+    pthread_mutex_unlock(&_dataMutex);
+    return ret;
+}
+
+std::vector<std::array<float, 2>> getGreenBlob() {
+    pthread_mutex_lock(&_dataMutex);
+    return greenBlobs;
+    pthread_mutex_unlock(&_dataMutex);
+}
+
+*/
