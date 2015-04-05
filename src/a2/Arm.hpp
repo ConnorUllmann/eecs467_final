@@ -25,7 +25,13 @@ public:
 
 	void updateServoAngles(const dynamixel_status_list_t* list);
 
+    bool forwardKinematicsPolar(std::array<float, 2>& arr, const dynamixel_status_list_t& list) const;
+
+    bool forwardKinematicsPolar(std::array<float, 2>& arr) const;
+
 	bool forwardKinematics(std::array<float, 2>& arr) const;
+
+    static bool inverseKinematicsPolar(double R, double theta, double to_z, std::array<float, 6>& arr);
 
 	static bool inverseKinematics(double to_x, double to_y, double to_z, std::array<float, 6>& arr);
 
@@ -43,6 +49,9 @@ public:
 
 	void addCommandLists(const std::vector<dynamixel_command_list_t>& commands);
 
+
+    static bool getCommandToPolar(double R, double theta, double z, dynamixel_command_list_t& list);
+
 	static bool getCommandToPoint(double x, double y, double z, dynamixel_command_list_t& list);
 
 	static void setCommandClawParams(dynamixel_command_list_t& list, 
@@ -59,6 +68,20 @@ public:
 
 	// board coords
 	bool addCommandDropBall(std::array<int, 2> coords);
+
+    bool addCommandMoveRotate(double deg);
+
+    bool addCommandMoveRadiate(double r);
+
+    bool addCommandMoveSwat();
+
+    bool addCommandMoveStart();
+
+    bool addCommandLimp();
+
+    bool addCommandMovePoint(double x, double y);
+
+    bool addCommandMovePoint(std::array<float, 2> coords);
 };
 
 #endif /* ARM_HPP */

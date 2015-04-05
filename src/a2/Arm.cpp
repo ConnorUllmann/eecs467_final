@@ -3,7 +3,7 @@
 #include "LcmHandler.hpp"
 #include "CoordinateConverter.hpp"
 #include "math/angle_functions.hpp"
-#include <cmath>
+#include <cmath> 
 #include <iostream>
 
 using namespace eecs467;
@@ -37,20 +37,21 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 	
 	LcmHandler::instance()->getLcm()->publish(ARM_CHANNEL_NAME, &_commands.front());
 	
-	float numFinished = 0;
-	float error = 0;
-	for (int i= 0; i < 6; ++i) {
-		float diff = fabs(_list.statuses[i].position_radians -
-			_commands.front().commands[i].position_radians);
-		error += diff;
+	// float numFinished = 0;
+	// float error = 0;
+	// for (int i= 0; i < 6; ++i) {
+	// 	float diff = fabs(_list.statuses[i].position_radians -
+	// 		_commands.front().commands[i].position_radians);
+	// 	error += diff;
 		
-		//printf("%f\t", diff);
-		if((i != 5 && diff < ARM_ERROR_THRESH) || 
-		   (i == 5 && diff < HAND_ERROR_THRESH))
-			numFinished++;
-	}
-	//printf("\nerror: %f\n", error);
-	if (numFinished >= 6) {  //error < ARM_ERROR_THRESH) {
+	// 	//printf("%f\t", diff);
+	// 	if((i != 5 && diff < ARM_ERROR_THRESH) || 
+	// 	   (i == 5 && diff < HAND_ERROR_THRESH))
+	// 		numFinished++;
+	// }
+	// printf("\nerror: %f\n", error);
+	// if (numFinished >= 6) {  //error < ARM_ERROR_THRESH) {
+    if (1) {
 		pthread_mutex_lock(&_armMutex);
 		
 		if(!_commands.empty())
@@ -75,14 +76,36 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 	}
 }
 
+
+bool Arm::forwardKinematicsPolar(std::array<float, 2>& arr, const dynamixel_status_list_t& list) const {
+    // pthread_mutex_lock(&_armMutex);
+    if (list.statuses.size() == 0) {
+        // pthread_mutex_unlock(&_armMutex);
+
+        return false;
+    }
+
+    float length = ARM_LENGTH_1 * sin(list.statuses[1].position_radians) +
+                    ARM_LENGTH_2 * sin(angle_sum(list.statuses[1].position_radians, list.statuses[2].position_radians)) +
+                    ARM_LENGTH_3 * sin(angle_sum(angle_sum(list.statuses[1].position_radians, list.statuses[2].position_radians), list.statuses[3].position_radians));
+    // pthread_mutex_unlock(&_armMutex);
+
+    arr = std::array<float, 2>{{fabsf(length), (float) list.statuses[0].position_radians}};
+
+    return true;
+}
+
+bool Arm::forwardKinematicsPolar(std::array<float, 2>& arr) const {
+    pthread_mutex_lock(&_armMutex);
+    bool ret = forwardKinematicsPolar(arr, _list);
+    pthread_mutex_unlock(&_armMutex);
+    return ret;
+}
+
 bool Arm::forwardKinematics(std::array<float, 2>& arr) const {
 	pthread_mutex_lock(&_armMutex);
 	if (_list.statuses.size() == 0) {
 		pthread_mutex_unlock(&_armMutex);
-
-// std::cout << ">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!! list status size is 0!!!!!!!!!!!!!!!!!" << std::endl;
-
-// printf(">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!! list status size is 0!!!!!!!!!!!!!!!!!\n");
 
 		return false;
 	}
@@ -93,16 +116,42 @@ bool Arm::forwardKinematics(std::array<float, 2>& arr) const {
 		ARM_LENGTH_3 * sin(_list.statuses[1].position_radians + 
 			_list.statuses[2].position_radians +
 			_list.statuses[3].position_radians);
-	float x = -length * cos(_list.statuses[0].position_radians);
-	float y = -length * sin(_list.statuses[0].position_radians);
+	float x = length * cos(_list.statuses[0].position_radians);
+	float y = length * sin(_list.statuses[0].position_radians);
 	pthread_mutex_unlock(&_armMutex);
 
 	arr = std::array<float, 2>{{x, y}};
 
-// std::cout << ">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!!" << x << "," << y << std::endl;
-// printf(">>>>>>>>>>FORWARD KIN!!!!!!!!!!!!!!%f,%f\n", x, y);
-
 	return true;
+}
+
+bool Arm::inverseKinematicsPolar(double R, double theta, double to_z, std::array<float, 6>& arr)
+{
+    if (R == 0) {
+        std::cout << "Inverse Kinematic Polar R == 0\n"; 
+        return false;
+    }
+
+    float MSQR = R * R + (ARM_LENGTH_3 + to_z - ARM_LENGTH_0) * (ARM_LENGTH_3 + to_z - ARM_LENGTH_0);
+
+    float alpha = atan2(ARM_LENGTH_3 + to_z - ARM_LENGTH_0, R);
+
+    float beta = acos((-ARM_LENGTH_2 * ARM_LENGTH_2 +  ARM_LENGTH_1 * ARM_LENGTH_1 + MSQR) / (2 * ARM_LENGTH_1 * sqrt(MSQR)));
+
+    float gamma = acos((-MSQR + ARM_LENGTH_1 * ARM_LENGTH_1 + ARM_LENGTH_2 * ARM_LENGTH_2) / (2 * ARM_LENGTH_1 * ARM_LENGTH_2));
+    if (isnan(beta) || isnan(gamma)) {
+        std::cout << "Inverse Kinematic Polar beta or gamma is nan\n"; 
+        return false;
+    }
+
+    arr[0] = wrap_to_pi(theta); // arr[0] = wrap_to_pi(M_PI + theta);
+    arr[1] = angle_diff(angle_diff(M_PI / 2, alpha), beta);
+    arr[2] = angle_diff(M_PI, gamma);
+    arr[3] = angle_diff(angle_diff(M_PI, arr[2]), arr[1]);
+    arr[4] = 0;//M_PI/2.;
+    arr[5] = M_PI/2;//M_PI/2.;
+
+    return true;
 }
 
 /*
@@ -116,32 +165,10 @@ bool Arm::forwardKinematics(std::array<float, 2>& arr) const {
 */
 bool Arm::inverseKinematics(double to_x, double to_y, double to_z, std::array<float, 6>& arr)
 {
-	float R = sqrt(to_x * to_x + to_y * to_y);
-	if (R == 0) {
-		return false;
-	}
+	double R = sqrt(to_x * to_x + to_y * to_y);
+    double theta = atan2(to_y, to_x);
 
-	float MSQR = R * R + (ARM_LENGTH_3 + to_z - ARM_LENGTH_0) * 
-		(ARM_LENGTH_3 - ARM_LENGTH_0);
-	float alpha = atan2(ARM_LENGTH_3 + to_z - ARM_LENGTH_0, R);
-	float beta = acos((-ARM_LENGTH_2 * ARM_LENGTH_2 + 
-		ARM_LENGTH_1 * ARM_LENGTH_1 + MSQR) / 
-		(2 * ARM_LENGTH_1 * sqrt(MSQR)));
-	float gamma = acos((-MSQR + ARM_LENGTH_1 * ARM_LENGTH_1 + 
-		ARM_LENGTH_2 * ARM_LENGTH_2) / 
-		(2 * ARM_LENGTH_1 * ARM_LENGTH_2));
-	if (isnan(beta) || isnan(gamma)) {
-		return false;
-	}
-
-	arr[0] = wrap_to_pi(M_PI + atan2(to_y, to_x));
-	arr[1] = angle_diff(angle_diff(M_PI / 2, alpha), beta);
-	arr[2] = angle_diff(M_PI, gamma);
-	arr[3] = angle_diff(angle_diff(M_PI, arr[2]), arr[1]);
-	arr[4] = 0;//M_PI/2.;
-	arr[5] = M_PI/2;//M_PI/2.;
-
-	return true;
+    return inverseKinematicsPolar(R, theta, to_z, arr);
 }
 
 dynamixel_status_list_t Arm::getCurrentStatus() const {
@@ -235,22 +262,30 @@ void Arm::addCommandLists(const std::vector<dynamixel_command_list_t>& commands)
 	pthread_mutex_unlock(&_armMutex);
 }
 
+bool Arm::getCommandToPolar(double R, double theta, double z, 
+        dynamixel_command_list_t& list) {
+    list.commands.clear();
+    std::array<float, 6> arr;
+    if (!inverseKinematicsPolar(R, theta, z, arr)) {
+        return false;
+    }
+    for (int i = 0; i < 6; ++i) {
+        dynamixel_command_t cmd;
+        cmd.position_radians = arr[i];
+        cmd.max_torque = ARM_MAX_TORQUE;
+        cmd.speed = ARM_SPEED;
+        list.commands.push_back(cmd);
+    }
+    list.len = list.commands.size();
+    return true;
+}
+
 bool Arm::getCommandToPoint(double x, double y, double z, 
-	dynamixel_command_list_t& list) {
-	list.commands.clear();
-	std::array<float, 6> arr;
-	if (!inverseKinematics(x, y, z, arr)) {
-		return false;
-	}
-	for (int i = 0; i < 6; ++i) {
-		dynamixel_command_t cmd;
-		cmd.position_radians = arr[i];
-		cmd.max_torque = ARM_MAX_TORQUE;
-		cmd.speed = ARM_SPEED;
-		list.commands.push_back(cmd);
-	}
-	list.len = list.commands.size();
-	return true;
+	   dynamixel_command_list_t& list) {
+
+    double R = sqrt(x * x + y * y);
+    double theta = atan2(y, x);
+	return getCommandToPolar(R, theta, z, list) ;
 }
 
 void Arm::setCommandClawParams(dynamixel_command_list_t& list, 
@@ -385,4 +420,236 @@ bool Arm::addCommandDropBall(std::array<int, 2> coords) {
 	}
 
 	return true;
+}
+
+
+bool Arm::addCommandMoveRotate(double deg) { 
+    // add angle go left, sub angle go right
+
+    // std::array<float, 2> arr;
+
+    dynamixel_status_list_t status = Arm::instance()->getCurrentStatus();
+
+// std::cout << "status ";
+// for (unsigned int i = 0; i < status.statuses.size(); ++i) {
+//     std::cout << status.statuses[i].position_radians << ",";
+// }
+// std::cout << "\n";
+
+
+    // if (!forwardKinematicsPolar(arr, status)) {
+    //     std::cout << "can't forward kinimatic " << std::endl;
+    //     return false;
+    // }
+
+    // float newA = arr[1];
+
+    float newA = status.statuses[0].position_radians;
+
+    if (newA + deg > M_PI/2) {
+        newA = M_PI/2;
+    }
+    else if (newA + deg < -M_PI/2) {
+        newA = -M_PI/2;
+    }
+    else {
+        newA += deg;
+    }
+
+// std::cout << "curR " << arr[0] << ", curA " << arr[1] << ", newA " << newA << std::endl;
+
+    // status.statuses[5].position_radians = status.statuses[0].position_radians;
+
+    dynamixel_command_list_t cmdList;
+
+    // if (!getCommandToPolar(arr[0], newA, 0.02, cmdList)) {
+    //     std::cout << "can't rotate to R:" << arr[0] << ", A:" << newA << std::endl;
+    //     return false;
+    // }
+    for (int i = 0; i < 6; ++i) {
+        dynamixel_command_t cmd;
+        cmd.position_radians = status.statuses[i].position_radians;
+        cmd.max_torque = ARM_MAX_TORQUE;
+        cmd.speed = ARM_SPEED;
+        cmdList.commands.push_back(cmd);
+    }
+
+    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, newA);
+
+    cmdList.commands[0].position_radians = newA;
+    cmdList.commands[1].position_radians = status.statuses[1].position_radians - 0.025;
+    cmdList.commands[2].position_radians = status.statuses[2].position_radians - 0.02;
+    // cmdList.commands[3].position_radians = status.statuses[3].position_radians;
+
+    cmdList.len = cmdList.commands.size();
+
+// std::cout << "command ";
+// for (unsigned int i = 0; i < cmdList.commands.size(); ++i) {
+//     std::cout << cmdList.commands[i].position_radians << ",";
+// }
+// std::cout << "\n";
+
+    Arm::instance()->addCommandList(cmdList);
+
+    return true;
+}
+
+bool Arm::addCommandMoveRadiate(double r) {     
+    std::array<float, 2> arr;
+
+    dynamixel_status_list_t status = Arm::instance()->getCurrentStatus();
+
+// std::cout << "status ";
+// for (unsigned int i = 0; i < status.statuses.size(); ++i) {
+//     std::cout << status.statuses[i].position_radians << ",";
+// }
+// std::cout << "\n";
+
+    if (!forwardKinematicsPolar(arr, status)) {
+        std::cout << "can't forward kinimatic " << std::endl;
+        return false;
+    }
+
+    float newR = arr[0];
+
+    if (arr[0]+r > 0.18) {
+        newR = 0.18;
+    }
+    else if (arr[0]+r < 0.08) {
+        newR = 0.08;
+    }
+    else {
+        newR = arr[0]+r;
+    }
+
+// std::cout << "curR " << arr[0] << ", newR " << newR << ", curA " << arr[1] << std::endl;
+
+    dynamixel_command_list_t cmdList;
+
+    if (!getCommandToPolar(newR, arr[1], armOffGround, cmdList)) {
+        std::cout << "can't radiate to R:" << newR << ", A:" << arr[1] << std::endl;
+        return false;
+    }
+
+    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, arr[1]);
+
+// std::cout << "command ";
+// for (unsigned int i = 0; i < cmdList.commands.size(); ++i) {
+//     std::cout << cmdList.commands[i].position_radians << ",";
+// }
+// std::cout << "\n";
+
+    Arm::instance()->addCommandList(cmdList);
+
+    return true;
+}
+
+bool Arm::addCommandMoveSwat() {     
+    // std::array<float, 2> arr;
+
+    dynamixel_status_list_t status = Arm::instance()->getCurrentStatus();
+
+    dynamixel_command_list_t cmdList;
+
+    for (int i = 0; i < 6; ++i) {
+        dynamixel_command_t cmd;
+        cmd.position_radians = status.statuses[i].position_radians;
+        cmd.max_torque = ARM_MAX_TORQUE;
+        cmd.speed = ARM_SPEED*1.5;
+        cmdList.commands.push_back(cmd);
+    }
+
+    cmdList.len = cmdList.commands.size();
+
+    setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, status.statuses[0].position_radians);
+
+    cmdList.commands[1].position_radians = status.statuses[1].position_radians - 0.025;
+    cmdList.commands[2].position_radians = status.statuses[2].position_radians - 0.02;
+
+
+    while (Arm::instance()->inMotion()) {}
+    Arm::instance()->addCommandList(cmdList);
+
+    usleep(1000000/2);
+
+    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, status.statuses[0].position_radians);
+
+    Arm::instance()->addCommandList(cmdList);
+
+    return true;
+}
+
+bool Arm::addCommandMoveStart() {     
+    std::array<float, 2> arr;
+
+    dynamixel_status_list_t status = Arm::instance()->getCurrentStatus();
+
+// std::cout << "status ";
+// for (unsigned int i = 0; i < status.statuses.size(); ++i) {
+//     std::cout << status.statuses[i].position_radians << ",";
+// }
+// std::cout << "\n";
+
+    if (!forwardKinematicsPolar(arr, status)) {
+        std::cout << "can't forward kinimatic " << std::endl;
+        return false;
+    }
+
+    dynamixel_command_list_t cmdList;
+
+    if (!getCommandToPolar(0.1, 0, armOffGround, cmdList)) {
+        std::cout << "can't radiate to R:" << 0.1 << ", A:" << 0 << std::endl;
+        return false;
+    }
+
+    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, 0);
+
+// std::cout << "command ";
+// for (unsigned int i = 0; i < cmdList.commands.size(); ++i) {
+//     std::cout << cmdList.commands[i].position_radians << ",";
+// }
+// std::cout << "\n";
+
+    Arm::instance()->addCommandList(cmdList);
+
+    return true;
+}
+
+bool Arm::addCommandLimp() {     
+    
+    dynamixel_command_list_t cmdList;
+
+    for (int i = 0; i < 6; ++i) {
+        dynamixel_command_t cmd;
+        cmd.position_radians = 0;
+        cmd.max_torque = 0;
+        cmd.speed = 0;
+        cmdList.commands.push_back(cmd);
+    }
+
+    cmdList.len = cmdList.commands.size();
+
+    Arm::instance()->addCommandList(cmdList);
+
+    return true;
+}
+
+bool Arm::addCommandMovePoint(double x, double y) {
+
+    dynamixel_command_list_t cmdList;
+
+    if (!Arm::instance()->getCommandToPoint(x, y, armOffGround, cmdList)) {
+        std::cout << "can't move to x:" << x << ", y:" << y << std::endl;
+        return false;
+    }
+
+    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, cmdList.commands[0].position_radians);
+
+    Arm::instance()->addCommandList(cmdList);
+    return true;
+}
+
+bool Arm::addCommandMovePoint(std::array<float, 2> coords) {
+
+    return addCommandMovePoint(coords[0], coords[1]);
 }

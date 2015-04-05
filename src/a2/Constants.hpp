@@ -16,11 +16,11 @@ const float CLAW_LENGTH = 0.082; // from claw joint to tip
 const float ARM_ANGLE_MIN[] = {-3.14,-2.094,-2.094,-2.094,-2.618,-0.9 };
 const float ARM_ANGLE_MAX[] = { 3.14, 2.094, 2.094, 2.094, 2.618, 2.3 };
 
-const float CLAW_OPEN_ANGLE = 0.7;
-const float CLAW_CLOSED_ANGLE = 1.65;
+const float CLAW_OPEN_ANGLE = 1.2; // 0.7 default
+const float CLAW_CLOSED_ANGLE = 1.7; // 1.65 default
 
-const float ARM_SPEED = 0.06;
-const float ARM_MAX_TORQUE = 0.9;
+const float ARM_SPEED = 0.08; //0.06 default
+const float ARM_MAX_TORQUE = 1.0; // 0.9 default
 const std::string ARM_CHANNEL_NAME = "ARM_COMMAND";
 const float ARM_ERROR_THRESH = 0.05;
 const float HAND_ERROR_THRESH = 0.2;
@@ -61,5 +61,7 @@ const int STATION = 0;
 const int RIGHT = 1;
 
 enum OBJECT : uint8_t { NONE, REDBALL, GREENBALL, BLUESQUARE };
+
+const float armOffGround = 0.025;
 
 #endif /* CONSTANTS_HPP */

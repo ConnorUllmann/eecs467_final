@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <stdio.h>
 #include <fstream>
+#include <algorithm>
 
 using namespace eecs467;
 
@@ -36,6 +37,9 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 
 	if (_state != IDLE) {
 		imageIndices = CoordinateConverter::screenToImage({{(float)x, (float)y}});
+
+// std::cout << "input " <<x << "," << y << " image indices " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
 		if (imageIndices[0] < 0) {
 			imageIndices[0] = 0;
 		}
@@ -63,6 +67,13 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 		case MASKING2:
 			_calibrationInfo.maskXRange[1] = imageIndices[0];
 			_calibrationInfo.maskYRange[0] = imageIndices[1];
+
+            if (_calibrationInfo.maskXRange[0] > _calibrationInfo.maskXRange[1]) {
+                std::swap(_calibrationInfo.maskXRange[0], _calibrationInfo.maskXRange[1]);
+            }
+            if (_calibrationInfo.maskYRange[0] > _calibrationInfo.maskYRange[1]) {
+                std::swap(_calibrationInfo.maskYRange[0], _calibrationInfo.maskYRange[1]);
+            }
 			
 			putMaskCalibToFile();
 			_state = IDLE;
@@ -123,8 +134,15 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 			break; }
 		case BOARD1:
 		    _armLocations.clear();
-			_leftCornerClick = Point<int>{imageIndices[0],
-				imageIndices[1]};
+            _clickedPoints.clear();
+
+            _clickedPoints.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+
+			// _leftCornerClick = Point<int>{imageIndices[0],
+			// 	imageIndices[1]};
+            
+std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
 			_state = BOARD2;
 			break;
 		case BOARD2: {
@@ -134,7 +152,14 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 				break;
 			}
 			_armLocations.push_back(Point<float>{loc[0], loc[1]});
+
 			_armToLeftLength = sqrt(loc[0] * loc[0] + loc[1] * loc[1]);
+
+            _clickedPoints.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+
+std::cout << "arm " << loc[0] << "," << loc[1] << std::endl;
+std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
 			_state = BOARD3;
 			break; }
 		case BOARD3: {
@@ -144,6 +169,12 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 				break;
 			}
 			_armLocations.push_back(Point<float>{loc[0], loc[1]});
+
+            _clickedPoints.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+
+std::cout << "arm " << loc[0] << "," << loc[1] << std::endl;
+std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
 			_state = BOARD4;
 			break; }
 		case BOARD4: {
@@ -153,6 +184,12 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 				break;
 			}
 			_armLocations.push_back(Point<float>{loc[0], loc[1]});
+
+            _clickedPoints.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+
+std::cout << "arm " << loc[0] << "," << loc[1] << std::endl;
+std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
 			_state = BOARD5;
 			break; }
 		case BOARD5: {
@@ -162,10 +199,31 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 				break;
 			}
 			_armLocations.push_back(Point<float>{loc[0], loc[1]});
-			_armToRightLength = sqrt(loc[0] * loc[0] + loc[1] * loc[1]);
+			// _armToRightLength = sqrt(loc[0] * loc[0] + loc[1] * loc[1]);
+
+
+            _clickedPoints.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+
+std::cout << "arm " << loc[0] << "," << loc[1] << std::endl;
+std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
 			_state = BOARD6;
 			break; }
 		case BOARD6: {
+
+            std::array<float, 2> loc;
+            if (!Arm::instance()->forwardKinematics(loc)) {
+                std::cout << "Rexarm hasn't been initialized\n";
+                break;
+            }
+            _armLocations.push_back(Point<float>{loc[0], loc[1]});
+
+            _armToRightLength = sqrt(loc[0] * loc[0] + loc[1] * loc[1]);
+
+std::cout << "arm " << loc[0] << "," << loc[1] << std::endl;
+std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::endl;
+
+            /*
 			// get blobs
 			std::vector<BlobDetector::Blob> blobs =
 				BlobDetector::findBlobs(im, 
@@ -207,13 +265,21 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 				std::cout << "Affline Transform error\n";
 				break;
 			}
+            */
+
+            if (!createAfflineTransform(_clickedPoints, _armLocations,
+                _imageToGlobal)) {
+                std::cout << "Affline Transform error\n";
+                break;
+            } 
 
 			if (!putTransformToFile()) {
 				std::cout << "Unable to save transform to file\n";
 			}
 			_validImageToGlobal = true;
 			_state = IDLE;
-			break; }
+			break; 
+        }
 		case COORDTRANSFORM:
 		    pthread_mutex_unlock(&_calibMutex);
 			printf("Screen Coords: (%f, %f)\n", x, y);
@@ -224,8 +290,8 @@ void CalibrationHandler::handleMouseEvent(double x, double y, image_u32_t* im) {
 			imageCoords(2, 0) = 1;
 			Matrix<float> globalCoords = _imageToGlobal * imageCoords;
 			printf("Global Coords: (%f, %f)\n", globalCoords(0), globalCoords(1));
-			std::array<int, 2> boardCoords = CoordinateConverter::globalToBoard(std::array<float, 2>{{globalCoords(0), globalCoords(1)}});
-			printf("Board Coords: (%d, %d)\n", boardCoords[0], boardCoords[1]);
+			// std::array<int, 2> boardCoords = CoordinateConverter::globalToBoard(std::array<float, 2>{{globalCoords(0), globalCoords(1)}});
+			// printf("Board Coords: (%d, %d)\n", boardCoords[0], boardCoords[1]);
 			printf("\n");
 			
 			_state = IDLE;
@@ -250,7 +316,7 @@ void CalibrationHandler::calibrateMask() {
 
 void CalibrationHandler::calibrateHsv() {
 	pthread_mutex_lock(&_calibMutex);
-	_state = HSV2; // skip red ball
+	_state = HSV2; // skip red
 	pthread_mutex_unlock(&_calibMutex);
 }
 
@@ -275,6 +341,7 @@ int CalibrationHandler::imageHeight() {
 	return ret;
 }
 
+
 float CalibrationHandler::armToRightLength() {
     pthread_mutex_lock(&_calibMutex);
 	float ret = _armToRightLength;
@@ -288,6 +355,7 @@ float CalibrationHandler::armToLeftLength() {
 	pthread_mutex_unlock(&_calibMutex);
     return ret;
 }
+
 
 void CalibrationHandler::calibrateImageSize(int imageHeight, int imageWidth, bool mask) {
 	pthread_mutex_lock(&_calibMutex);
@@ -362,17 +430,23 @@ std::string CalibrationHandler::getMessage() {
 		case HSV3:
 			ret = "click blue square"; break;
 		case BOARD1:
-			ret = "click square to left of arm"; break;
+			// ret = "click square to left of arm"; break;
+            ret = "click any where within arm reach, and move arm there"; break;
 		case BOARD2:
-			ret = "move arm to left square, then click"; break;
+			// ret = "move arm to left square, then click"; break;
+            ret = "click on second location within arm reach, and move arm there"; break;
 		case BOARD3:
-			ret = "move arm to far left square, then click"; break;
+			// ret = "move arm to far left square, then click"; break;
+            ret = "click on third location within arm reach, and move arm there"; break;
 		case BOARD4:
-			ret = "move arm to far right square, then click"; break;
+			// ret = "move arm to far right square, then click"; break;
+            ret = "click on fourth location within arm reach, and move arm there"; break;
 		case BOARD5:
-			ret = "move arm to right square, then click"; break;
+			// ret = "move arm to right square, then click"; break;
+            ret = "click on fifth location within arm reach, and move arm there"; break;
 		case BOARD6:
-			ret = "make sure image is clear of distractions, then click"; break;
+			// ret = "make sure image is clear of distractions, then click"; break;
+            ret = "move the arm to last position, and click to finish configuration"; break;
 		case COORDTRANSFORM:
 			ret = "click a point"; break;
 		default:
@@ -594,4 +668,45 @@ bool CalibrationHandler::readTransformFromFile() {
 	
 	inputFile.close();
 	return true;
+}
+
+
+Point<int> CalibrationHandler::getcurClick() {
+    if (!_clickedPoints.empty()) {
+        return Point<int> (_clickedPoints.back().x,_clickedPoints.back().y);
+    }
+    return Point<int>(-1,-1);
+}
+
+int CalibrationHandler::getState() {
+    switch (_state) {
+        case IDLE:
+            return 0; break;
+        case MASKING1:
+            return 1; break;
+        case MASKING2:
+            return 2; break;
+        case HSV1:
+            return 3; break;
+        case HSV2:
+            return 4; break;
+        case HSV3:
+            return 5; break;
+        case BOARD1:
+            return 6; break;
+        case BOARD2:
+            return 7; break;
+        case BOARD3 :
+            return 8; break;
+        case BOARD4:
+            return 9; break;
+        case BOARD5:
+            return 10; break;
+        case BOARD6:
+            return 11; break;
+        case COORDTRANSFORM:
+            return 12; break; 
+        default :
+            return -1;
+    }
 }

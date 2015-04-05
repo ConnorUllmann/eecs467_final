@@ -99,6 +99,12 @@ void* VxHandler::renderThread(void* args) {
 
 
 		std::string message = CalibrationHandler::instance()->getMessage();
+
+        if (buttonStates.moveArm) {
+            message = "Click on the screen to move arm there";
+        }
+
+
 		message = "<<right,#ff00ff,serif>>" + message;
 		vx_object_t* vtext = vxo_chain(
 			vxo_mat_translate3(400, 40, 0),
@@ -107,16 +113,15 @@ void* VxHandler::renderThread(void* args) {
 
 		if (buttonStates.blobDetect) {
             vx_resc_t* verts;
-            /*
-			std::vector<float> redPoints;
-			for (auto& blob : renderInfo.redBlobs) {
-				redPoints.push_back(blob[0]);
-				redPoints.push_back(blob[1]);
-				redPoints.push_back(0);
-			}
-			vx_resc_t* verts = vx_resc_copyf(redPoints.data(), redPoints.size());
-			vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vxo_points(verts, redPoints.size() / 3, vxo_points_style(vx_red, 5.0f)));			
-            */
+
+			// std::vector<float> redPoints;
+			// for (auto& blob : renderInfo.redBlobs) {
+			// 	redPoints.push_back(blob[0]);
+			// 	redPoints.push_back(blob[1]);
+			// 	redPoints.push_back(0);
+			// }
+			// vx_resc_t* verts = vx_resc_copyf(redPoints.data(), redPoints.size());
+			// vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "state"), vxo_points(verts, redPoints.size() / 3, vxo_points_style(vx_red, 5.0f)));			
 
 			std::vector<float> greenPoints;
 			for (auto& blob : renderInfo.greenBlobs) {
@@ -142,9 +147,7 @@ void* VxHandler::renderThread(void* args) {
 
         if (renderInfo.start) {
 // cout << " renderInfo.Start " << renderInfo.start<< endl;
-
-
-            std::vector<float> redPoints;
+            std::vector<float> tealPoints;
             std::vector<BlobDetector::Blob> ballPos = GamePlayer::instance()->getBallPos();
             int direction = GamePlayer::instance()->getDirection();
             for (auto& blob : ballPos) {
@@ -152,21 +155,21 @@ void* VxHandler::renderThread(void* args) {
                 std::array<float, 2> screenCoords = 
                     CoordinateConverter::imageToScreen(imageCoords);
 
-                redPoints.push_back(screenCoords[0]);
-                redPoints.push_back(screenCoords[1]);
-                redPoints.push_back(0);
+                tealPoints.push_back(screenCoords[0]);
+                tealPoints.push_back(screenCoords[1]);
+                tealPoints.push_back(0);
             }
 
-// for (int i : redPoints) {
+// for (int i : tealPoints) {
 //     std::cout << i <<",";
 // }
 // std::cout << "\n";
 
 // usleep(1000000);
-// cout << "red pos size " << redPoints.size() << endl;
+// cout << "red pos size " << tealPoints.size() << endl;
 
-            vx_resc_t* verts = vx_resc_copyf(redPoints.data(), redPoints.size());
-            vx_buffer_add_back(stateBuf, vxo_points(verts, redPoints.size() / 3, vxo_points_style(vx_red, 5.0f)));          
+            vx_resc_t* verts = vx_resc_copyf(tealPoints.data(), tealPoints.size());
+            vx_buffer_add_back(stateBuf, vxo_points(verts, tealPoints.size() / 3, vxo_points_style(vx_teal, 5.0f)));          
             
             string m = "<<#ffaa00>> Ball Direction: ";
 
@@ -226,6 +229,26 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 		CalibrationHandler::instance()->handleMouseEvent(ground[0], 
 			ground[1], renderInfo.im);
 
+        if (CalibrationHandler::instance()->getState() >= 7 && CalibrationHandler::instance()->getState() <= 11) {
+            Point<int> p = CalibrationHandler::instance()->getcurClick();
+            std::array<int, 2> imageCoords{ {p.x, p.y} };
+
+// std::cout << p.x << "," << p.y << std::endl;
+
+            std::array<float, 2> screenCoords = CoordinateConverter::imageToScreen(imageCoords);
+
+            std::vector<float> redPoints;
+            redPoints.push_back(screenCoords[0]);
+            redPoints.push_back(screenCoords[1]);
+            redPoints.push_back(0.0001);
+            vx_resc_t* verts = vx_resc_copyf(redPoints.data(), redPoints.size());
+            vx_buffer_add_back(vx_world_get_buffer(state->vxWorld, "mouse"), vxo_points(verts, redPoints.size() / 3, vxo_points_style(vx_red, 5.0f))); 
+            vx_buffer_swap(vx_world_get_buffer(state->vxWorld, "mouse"));  
+        }
+        else {
+            vx_buffer_swap(vx_world_get_buffer(state->vxWorld, "mouse"));  
+        }
+
 		pthread_mutex_lock(&renderMutex);
 		if (buttonStates.moveArm) {
 			std::array<int, 2> imageCoords = 
@@ -234,8 +257,7 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 			std::array<float, 2> globalCoords = 
 				CoordinateConverter::imageToGlobal(imageCoords);
 
-            // ###################################################### change command to move not grab
-			if (!Arm::instance()->addCommandGrabBall(globalCoords)) {
+			if (!Arm::instance()->addCommandMovePoint(globalCoords)) {
 				printf("Can't move there\n");
 			}
 
@@ -268,9 +290,34 @@ int VxHandler::mouse_event(vx_event_handler_t *vxeh, vx_layer_t *vl,
 
 int VxHandler::key_event(vx_event_handler_t *vxeh, vx_layer_t *vl, vx_key_event_t *key)
 {
-	//state_t *state = vxeh->impl;
+	// VxHandler* state = (VxHandler*) vxeh->impl;
 
-    // handle manual mode here
+    if (buttonStates.manual) {
+        if (!key->released) {
+            switch(key->key_code) {
+                case VX_KEY_LEFT:
+std::cout << "left\n";
+                    Arm::instance()->addCommandMoveRotate(0.3);
+                break;
+                case VX_KEY_RIGHT:
+std::cout << "right\n";
+                    Arm::instance()->addCommandMoveRotate(-0.3);
+                break;
+                case VX_KEY_UP:
+std::cout << "up\n";
+                    Arm::instance()->addCommandMoveRadiate(0.02);
+                break;
+                case VX_KEY_DOWN:
+std::cout << "down\n";
+                    Arm::instance()->addCommandMoveRadiate(-0.02);
+                break;
+                case VX_KEY_SPACE:
+std::cout << "space\n";
+                    Arm::instance()->addCommandMoveSwat();
+                break;
+            }
+        } 
+    }
 
 	return 0;
 }
@@ -336,7 +383,9 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
             std::cout << "turn off auto mode to start manual mode\n";
         }
         if (CalibrationHandler::instance()->isIdle()) {
+            std::cout << "manual mode\n";
             buttonStates.manual = true;
+            Arm::instance()->addCommandMoveStart();
         }
         else {
             std::cout << "Calibation busy, please try again later\n";
@@ -348,6 +397,7 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
                 buttonStates.manual = false;
                 std::cout << "turn off manual mode to start auto mode\n";
             }
+            std::cout << "auto mode\n";
     		GlobalState::instance()->setStart(true);
         }
         else {
@@ -365,6 +415,7 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
             buttonStates.manual = false;
             std::cout << "stop manual mode\n";
         }
+        Arm::instance()->addCommandLimp();
     } else {
         std::cout << "ERROR::invalid button pressed: " << strName << "\n";
     }

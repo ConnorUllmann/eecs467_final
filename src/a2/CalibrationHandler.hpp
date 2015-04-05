@@ -15,11 +15,13 @@
 using namespace eecs467;
 
 class CalibrationHandler {
+
+public:
+    enum CALIBRATION_STATE { IDLE, MASKING1, MASKING2, 
+        HSV1, HSV2, HSV3, BOARD1, BOARD2, BOARD3, 
+        BOARD4, BOARD5, BOARD6, 
+        COORDTRANSFORM };
 private:
-	enum CALIBRATION_STATE { IDLE, MASKING1, MASKING2, 
-		HSV1, HSV2, HSV3, BOARD1, BOARD2, BOARD3, 
-		BOARD4, BOARD5, BOARD6, 
-		COORDTRANSFORM };
 	CALIBRATION_STATE _state;
 	// mask corners are bottom left and top right of screen
 	// however it is actually (low, high) and (high, low) of image coordinates
@@ -42,8 +44,10 @@ private:
 	CalibrationHandler();
 	static CalibrationHandler* _instance;
 
+    std::vector<Point<int>> _clickedPoints;
 
 public:
+
 	static CalibrationHandler* instance();
 	/**
 	 * @brief call this every time a mouse event triggers
@@ -113,6 +117,10 @@ public:
 	 * @param maskCorners corners that are gotten from getMask()
 	 */
 	void clipImage(image_u32_t* im);
+
+    Point<int> getcurClick();
+
+    int getState();
 
 private:
 	static bool createAfflineTransform(
