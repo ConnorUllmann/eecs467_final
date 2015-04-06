@@ -62,6 +62,6 @@ const int RIGHT = 1;
 
 enum OBJECT : uint8_t { NONE, REDBALL, GREENBALL, BLUESQUARE };
 
-const float armOffGround = 0.025;
+const float armOffGround = 0.02;
 
 #endif /* CONSTANTS_HPP */

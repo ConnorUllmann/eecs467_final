@@ -62,6 +62,9 @@ void* GamePlayer::gameThread(void* args) {
     while (1) {
         while (!GlobalState::instance()->getStart()) {usleep(10000);};
 
+// cout << "kk" << endl;
+
+
 		pthread_mutex_lock(&state->_GamePlayerMutex);
 
 		RenderInfo renderInfo(GlobalState::instance()->getData());

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <math/point.hpp>
 #include <vector>
+#include "CoordinateConverter.hpp"
 using namespace std;
 
 
@@ -73,6 +74,9 @@ vector<eecs467::Point<double>> predictPath2(vector<BlobDetector::Blob>& pos)
     eecs467::Point<double> vel(v[v.size()-1]); //The starting velocity we will predict with.
     eecs467::Point<double> p(pos[pos.size()-1].x, pos[pos.size()-1].y); //The starting position we will predict from.
 
+
+
+
     double t = 0;
     while(t < PREDICTION_TIME)
     {
@@ -81,6 +85,8 @@ vector<eecs467::Point<double>> predictPath2(vector<BlobDetector::Blob>& pos)
 
         p.x += vel.x * TIME_DIFF;
         p.y += vel.y * TIME_DIFF;
+
+        // std::array<int, 2> arr{{p.x, p.y}};
 
         ret.push_back(p);
         t += TIME_DIFF;
