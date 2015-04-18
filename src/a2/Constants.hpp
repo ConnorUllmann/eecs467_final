@@ -30,6 +30,7 @@ const float BALL_RADIAL_OFFSET = 0.02;
 const std::string colorCalibrationFileName = "color_calib.txt";
 const std::string maskCalibFileName = "mask_calib.txt";
 const std::string transformCalibFileName = "transform_calib.txt";
+const std::string wallCalibFileName = "wall_calib.txt";
 
 //////////////////////////////
 // BLOB DETECTION CONSTANTS
@@ -56,9 +57,11 @@ const float boardDiagonalLength = 0.34; // center of blue to center of blue
 const float blueSquareSideLength = 0.06; // meters
 const float blueSquareDiagonalLength = 0.08202438; // meters
 
-const int LEFT = -1;
-const int STATION = 0;
-const int RIGHT = 1;
+const int LEFT = 4;
+const int STATION = 5;
+const int RIGHT = 6;
+const int UP = 8;
+const int DOWN = 2;
 
 enum OBJECT : uint8_t { NONE, REDBALL, GREENBALL, BLUESQUARE };
 

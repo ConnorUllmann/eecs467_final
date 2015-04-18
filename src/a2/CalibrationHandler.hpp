@@ -20,7 +20,8 @@ public:
     enum CALIBRATION_STATE { IDLE, MASKING1, MASKING2, 
         HSV1, HSV2, HSV3, BOARD1, BOARD2, BOARD3, 
         BOARD4, BOARD5, BOARD6, 
-        COORDTRANSFORM };
+        COORDTRANSFORM,
+        WALL1, WALL2, WALL3, WALL4};
 private:
 	CALIBRATION_STATE _state;
 	// mask corners are bottom left and top right of screen
@@ -45,6 +46,8 @@ private:
 	static CalibrationHandler* _instance;
 
     std::vector<Point<int>> _clickedPoints;
+
+    std::vector<Point<int>> _wallCorners;
 
 public:
 
@@ -88,6 +91,8 @@ public:
 	 */
 	void calibrateBoardTransform();
 
+    void calibrateWall();
+
 	void coordTransform();
 
 	bool boardTransformValid();
@@ -122,6 +127,8 @@ public:
 
     int getState();
 
+    std::vector<Point<int>> getWalls();
+
 private:
 	static bool createAfflineTransform(
 		const std::vector<Point<int>>& imageCoords,
@@ -149,6 +156,10 @@ private:
 	
 
 	bool putTransformToFile();
+
+    bool putWallToFile();
+
+    bool readWallFromFile();
 
 	bool readTransformFromFile();
 };

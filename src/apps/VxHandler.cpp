@@ -44,6 +44,7 @@ VxHandler::VxHandler(int width, int height) :
 		"butMask", "Calibrate Masking",
 		"butColor", "Calibrate Colors",
 		"butGlobalTrans", "Calibrate Global Transform",
+        "butWall", "Calibrate Wall",
 		"butSaveIm", "Save Image",
 		"butCoordConv", "Coordinate Convert",
         "butMoveArm", "Move Arm",
@@ -111,6 +112,25 @@ void* VxHandler::renderThread(void* args) {
 			vxo_mat_translate3(400, 40, 0),
 			vxo_text_create(VXO_TEXT_ANCHOR_CENTER, message.c_str()));
 		vx_buffer_add_back(stateBuf, vxo_pix_coords(VX_ORIGIN_BOTTOM_LEFT, vtext));
+
+
+
+        std::vector<float> wallPoints;
+
+        std::vector<Point<int>> wallPos = CalibrationHandler::instance()->getWalls();
+
+        for (Point<int>& c : wallPos) {
+            std::array<int, 2> imageCoords{{c.x, c.y}};
+            std::array<float, 2> screenCoords = 
+                CoordinateConverter::imageToScreen(imageCoords);
+
+            wallPoints.push_back(screenCoords[0]);
+            wallPoints.push_back(screenCoords[1]);
+            wallPoints.push_back(0);
+        }
+        vx_resc_t* verts = vx_resc_copyf(wallPoints.data(), wallPoints.size());
+        vx_buffer_add_back(stateBuf, vxo_lines(verts, wallPoints.size() / 3, GL_LINES, vxo_points_style(vx_blue, 5.0f)));    
+
 
 		if (buttonStates.blobDetect) {
             vx_resc_t* verts;
@@ -183,6 +203,12 @@ void* VxHandler::renderThread(void* args) {
                     break;
                 case RIGHT:
                     m += "RIGHT";
+                    break;
+                case UP:
+                    m += "UP";
+                    break;
+                case DOWN:
+                    m += "DOWn";
                     break;
                 default:
                     m += "UNKNOWN DIRECTION";
@@ -361,17 +387,34 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->calibrateMask();
 		}
+        else {
+            cout << "Calibration busy" << endl;
+        }
 	} else if (strName == "butColor") {
 		// calibrate hsv
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->calibrateHsv();
 		}
+         else {
+            cout << "Calibration busy" << endl;
+        }
 	} else if (strName == "butGlobalTrans") {
 		// calibrate board transform
 		if (CalibrationHandler::instance()->isIdle()) {
 			CalibrationHandler::instance()->calibrateBoardTransform();
 		}
-	} else if (strName == "butSaveIm") {
+         else {
+            cout << "Calibration busy" << endl;
+        }
+	} else if (strName == "butWall") {
+        // calibrate board transform
+        if (CalibrationHandler::instance()->isIdle()) {
+            CalibrationHandler::instance()->calibrateWall();
+        }
+         else {
+            cout << "Calibration busy" << endl;
+        }
+    } else if (strName == "butSaveIm") {
 		RenderInfo renderInfo = GlobalState::instance()->getData();
 		//save image
 		int res = image_u32_write_pnm(renderInfo.im, imageFileName.c_str());

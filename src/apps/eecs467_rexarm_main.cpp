@@ -196,7 +196,7 @@ int main(int argc, char** argv)
 
 	// initialize with first image
 	im_time tempIm = camera.getImage();
-	CalibrationHandler::instance()->calibrateImageSize(tempIm.im->height, tempIm.im->width, true);
+	CalibrationHandler::instance()->calibrateImageSize(tempIm.im->height, tempIm.im->width, false);
 	image_u32_destroy(tempIm.im);
 
 /*

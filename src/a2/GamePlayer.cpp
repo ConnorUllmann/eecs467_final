@@ -57,7 +57,7 @@ void* GamePlayer::publishMessages(void* args){
 void* GamePlayer::gameThread(void* args) {
 	GamePlayer* state = (GamePlayer*) args;
 
-    int newDir = LEFT
+    int newDir = STATION;
 ;
     while (1) {
         while (!GlobalState::instance()->getStart()) {usleep(10000);};
@@ -125,16 +125,15 @@ void* GamePlayer::gameThread(void* args) {
 
 // std::cout << "new dir " << newDir << "\n";
 
-            // if ((state->_direction == LEFT && newDir == RIGHT) ||
-            //         (state->_direction == RIGHT && newDir == LEFT) ) {
-            //     state->_ballPos.clear();
-            // }
+            if ((state->_direction == UP && newDir == DOWN) ||
+                    (state->_direction == DOWN && newDir == UP) ) {
+                state->_ballPos.clear();
+            }
             // state->_direction = newDir;
 
             if (state->_ballPos.size() == 50) {
                 state->_ballPos.pop_front();
                 state->_ballPos.push_back(blobs[0]);
-                
             }
             else {
                 state->_ballPos.push_back(blobs[0]);
@@ -167,18 +166,19 @@ void GamePlayer::checkIfYourTurn(const ttt_turn_t* msg){
 */
 
 int GamePlayer::calculateBallDirection(BlobDetector::Blob& b1, BlobDetector::Blob& b2) {
-    int dir = b1.x-b2.x;
+    int dir = b1.y-b2.y;
 
 // std::cout << "b1 " << b1.x << "," << b1.y << " | b2 " << b2.x << "," << b2.y << endl;
 
-    if (abs(dir) <= 1 && abs(b1.y-b2.y) <= 1) {
+    // if (abs(dir) <= 1 && abs(b1.y-b2.y) <= 1) {
+    if (abs(dir) <= 1 && abs(b1.x-b2.x) <= 1) {
         return STATION;
     }
     if (dir > 0) {
-        return LEFT;
+        return UP;
     }
     if (dir < 0) {
-        return RIGHT;
+        return DOWN;
     }
     return STATION;
 }

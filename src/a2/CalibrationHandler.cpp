@@ -25,6 +25,7 @@ CalibrationHandler::CalibrationHandler() : _state(IDLE),
 	readCalibrationDataFromFile();
 	readTransformFromFile();
 	readMaskDataFromFile();
+    readWallFromFile();
 }
 
 CalibrationHandler* CalibrationHandler::instance() {
@@ -280,7 +281,7 @@ std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::end
 			_state = IDLE;
 			break; 
         }
-		case COORDTRANSFORM:
+		case COORDTRANSFORM: {
 		    pthread_mutex_unlock(&_calibMutex);
 			printf("Screen Coords: (%f, %f)\n", x, y);
 			printf("Image Coords: (%d, %d)\n", imageIndices[0], imageIndices[1]);
@@ -297,6 +298,31 @@ std::cout << "clicked " << imageIndices[0] << "," << imageIndices[1] << std::end
 			_state = IDLE;
 			pthread_mutex_lock(&_calibMutex);
 			break;
+        }
+        case WALL1:
+            _wallCorners.clear();
+            _wallCorners.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+            _state = WALL2;
+            break;
+        case WALL2:
+            _wallCorners.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+            _state = WALL3;
+            break;   
+        case WALL3:
+            _wallCorners.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+            _state = WALL4;
+            break;
+        case WALL4:
+            _wallCorners.push_back(Point<int>(imageIndices[0], imageIndices[1]));
+
+            if (!putWallToFile()) {
+                std::cout << "Unable to save wall to file\n";
+            }
+            _state = IDLE;
+            break;
+        default:
+            cout << "ERROR::INVALID STATE!!!!" << endl;
+            break;
 	}
 	pthread_mutex_unlock(&_calibMutex);
 }
@@ -325,6 +351,13 @@ CalibrationInfo CalibrationHandler::getCalibration() {
 	CalibrationInfo ret = _calibrationInfo;
 	pthread_mutex_unlock(&_calibMutex);
 	return ret;
+}
+
+std::vector<Point<int>> CalibrationHandler::getWalls() {
+    pthread_mutex_lock(&_calibMutex);
+    vector<Point<int>> ret = _wallCorners;
+    pthread_mutex_unlock(&_calibMutex);
+    return ret;
 }
 
 int CalibrationHandler::imageWidth() {
@@ -393,6 +426,13 @@ void CalibrationHandler::calibrateBoardTransform() {
 	pthread_mutex_unlock(&_calibMutex);
 }
 
+void CalibrationHandler::calibrateWall() {
+
+    pthread_mutex_lock(&_calibMutex);
+    _state = WALL1;
+    pthread_mutex_unlock(&_calibMutex);
+}
+
 void CalibrationHandler::coordTransform() {
 	pthread_mutex_lock(&_calibMutex);
 	_state = COORDTRANSFORM;
@@ -449,6 +489,14 @@ std::string CalibrationHandler::getMessage() {
             ret = "move the arm to last position, and click to finish configuration"; break;
 		case COORDTRANSFORM:
 			ret = "click a point"; break;
+        case WALL1:
+            ret = "click left wall corner"; break;
+        case WALL2:
+            ret = "click left wall corner"; break;
+        case WALL3:
+            ret = "click right wall corner"; break;
+        case WALL4:
+            ret = "click right wall corner"; break;
 		default:
 			ret = ""; break;
 	}
@@ -461,6 +509,8 @@ void CalibrationHandler::clipImage(image_u32_t* im) {
 	std::array<int, 2> maskXRange = _calibrationInfo.maskXRange;
 	std::array<int, 2> maskYRange = _calibrationInfo.maskYRange;
 	pthread_mutex_unlock(&_calibMutex);
+
+// cout << "CLIP IMAGE!!!!! " << _calibrationInfo.maskXRange[0] << "," <<_calibrationInfo.maskXRange[1] << "," <<_calibrationInfo.maskYRange[0] << "," << _calibrationInfo.maskYRange[1] << endl;
 
 	for (int i = 0; i < im->height; ++i) {
 		for (int j = 0; j < im->width; ++j) {
@@ -625,6 +675,8 @@ bool CalibrationHandler::readMaskDataFromFile(){
 	inputFile >> _calibrationInfo.maskYRange[0];
 	inputFile >> _calibrationInfo.maskYRange[1];
 
+// cout << "READ MASK!!!!! " << _calibrationInfo.maskXRange[0] << "," <<_calibrationInfo.maskXRange[1] << "," <<_calibrationInfo.maskYRange[0] << "," << _calibrationInfo.maskYRange[1] << endl;
+
 	return true;
 }
 
@@ -654,6 +706,38 @@ bool CalibrationHandler::putTransformToFile() {
 	outputFile << _armToLeftLength;
 	outputFile.close();
 	return true;
+}
+
+bool CalibrationHandler::putWallToFile() {
+    std::ofstream outputFile;
+    outputFile.open(wallCalibFileName.c_str());
+    if (!outputFile.is_open()) return false;
+
+    if (_wallCorners.size() != 4) {
+        cout << "_wallCorners size isn't 4, is" << _wallCorners.size() << endl;
+        return false;
+    }
+
+    for (unsigned int i = 0; i < 4; ++i) {
+        outputFile << _wallCorners[i].x <<  "\t" << _wallCorners[i].y <<  "\t";
+    }
+    outputFile << "\n";
+    outputFile.close();
+    return true;
+}
+
+bool CalibrationHandler::readWallFromFile() {
+    std::ifstream inputFile(wallCalibFileName.c_str());
+    if(!inputFile.is_open()) return false;
+
+    int x, y;
+    for (int i = 0; i < 4; ++i) {
+        inputFile >> x >> y;
+        _wallCorners.push_back(Point<int>(x,y));
+    }
+
+    inputFile.close();
+    return true;
 }
 
 bool CalibrationHandler::readTransformFromFile() {

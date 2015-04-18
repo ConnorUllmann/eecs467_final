@@ -517,8 +517,8 @@ bool Arm::addCommandMoveRadiate(double r) {
 
     float newR = arr[0];
 
-    if (arr[0]+r > 0.18) {
-        newR = 0.18;
+    if (arr[0]+r > 0.17) {
+        newR = 0.17;
     }
     else if (arr[0]+r < 0.08) {
         newR = 0.08;
@@ -575,7 +575,7 @@ bool Arm::addCommandMoveSwat() {
     while (Arm::instance()->inMotion()) {}
     Arm::instance()->addCommandList(cmdList);
 
-    usleep(1000000/2);
+    usleep(1000000/4); // 0.25 sec
 
     setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, status.statuses[0].position_radians);
 
