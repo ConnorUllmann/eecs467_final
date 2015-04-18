@@ -57,8 +57,8 @@ void* GamePlayer::publishMessages(void* args){
 void* GamePlayer::gameThread(void* args) {
 	GamePlayer* state = (GamePlayer*) args;
 
-    int newDir = LEFT;
-
+    int newDir = LEFT
+;
     while (1) {
         while (!GlobalState::instance()->getStart()) {usleep(10000);};
 
@@ -76,9 +76,11 @@ void* GamePlayer::gameThread(void* args) {
         }
 		// take in board state and blobs or w/e
 		std::vector<BlobDetector::Blob> blobs = 
-			BlobDetector::findGreenBlobs(renderInfo.im,
+			BlobDetector::findGreenBlobs(renderInfo.im, renderInfo.utime,
 			CalibrationHandler::instance()->getCalibration(),
 			blobMinPixels);
+
+// std::cout << "utime: " << renderInfo.utime << std::endl;
 
         if (blobs.size() <= 0) {
             std::cout << "Can't detect any green ball\n";
@@ -94,11 +96,28 @@ void* GamePlayer::gameThread(void* args) {
 // std::cout << "blob size " << blobs.size() << "\n";
 		
         if (!state->_ballPos.empty()) {
-            newDir = state->calculateBallDirection(state->_ballPos.back(), blobs[blobs.size()/2]);
+            newDir = state->calculateBallDirection(state->_ballPos.back(), blobs[0]);
+            // if (state->_ballPos.size() >= 1000) {
+            //     state->_ballPos.clear();
+            // }
+        }
 
-            if (state->_ballPos.size() >= 50000) {
-                state->_ballPos.clear();
+        GamePlayer::instance()->_ballPredict = BallPath::instance()->predictPath2(GamePlayer::instance()->getBallPos(), borderOffsetX);
+        if(GamePlayer::instance()->_ballPredict.size() > 0)
+        {
+            std::array<int, 2> op;
+            op[0] = GamePlayer::instance()->_ballPredict.back().x;
+            op[1] = GamePlayer::instance()->_ballPredict.back().y;
+            auto op1 = CoordinateConverter::imageToGlobal(op);
+
+// cout << "pos " << pos.back().x << ", " << pos.back().y << " global " << op1[0] << "," << op1[1] << endl;
+            if (op1[0] < 6*borderOffsetX) {
+                Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
             }
+            else {
+                Arm::instance()->addCommandMoveStart();
+            }
+
         }
 
 
@@ -106,29 +125,32 @@ void* GamePlayer::gameThread(void* args) {
 
 // std::cout << "new dir " << newDir << "\n";
 
-            if ((state->_direction == LEFT && newDir == RIGHT) ||
-                    (state->_direction == RIGHT && newDir == LEFT) ) {
-                state->_ballPos.clear();
-            }
-            state->_direction = newDir;
+            // if ((state->_direction == LEFT && newDir == RIGHT) ||
+            //         (state->_direction == RIGHT && newDir == LEFT) ) {
+            //     state->_ballPos.clear();
+            // }
+            // state->_direction = newDir;
 
-            state->_ballPos.push_back(blobs[blobs.size()/2]);
+            if (state->_ballPos.size() == 50) {
+                state->_ballPos.pop_front();
+                state->_ballPos.push_back(blobs[0]);
+                
+            }
+            else {
+                state->_ballPos.push_back(blobs[0]);
+            }
 // std::cout << "ballpos size " << state->_ballPos.size() << " x " << blobs[blobs.size()/2].x << " y " << blobs[blobs.size()/2].y << " \n";
         }
 
 
 		pthread_mutex_unlock(&state->_GamePlayerMutex);
-        
-        // ################prediction here
 
-        // ################ai here
-
-		while (1) {
-			if (!Arm::instance()->inMotion()) {
-				break;
-			}
-            usleep(1000);
-		}
+		// while (1) {
+		// 	if (true){//!Arm::instance()->inMotion()) {
+		// 		break;
+		// 	}
+  //           usleep(1000);
+		// }
 
 	}
 	pthread_mutex_unlock(&state->_GamePlayerMutex);
@@ -161,14 +183,24 @@ int GamePlayer::calculateBallDirection(BlobDetector::Blob& b1, BlobDetector::Blo
     return STATION;
 }
 
-std::vector<BlobDetector::Blob> GamePlayer::getBallPos() {
+std::deque<BlobDetector::Blob> GamePlayer::getBallPos() {
     // pthread_mutex_lock(&_GamePlayerMutex);
     
-    std::vector<BlobDetector::Blob> ret = _ballPos;
+    std::deque<BlobDetector::Blob> ret = _ballPos;
     
     // pthread_mutex_unlock(&_GamePlayerMutex);
     return ret;
 }
+
+std::vector<eecs467::Point<double>> GamePlayer::getBallPredict() {
+    // pthread_mutex_lock(&_GamePlayerMutex);
+
+    std::vector<eecs467::Point<double>> ret = _ballPredict;
+    
+    // pthread_mutex_unlock(&_GamePlayerMutex);
+    return ret;
+}
+
 
 int GamePlayer::getDirection() {
     // pthread_mutex_lock(&_GamePlayerMutex);

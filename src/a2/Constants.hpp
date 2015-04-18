@@ -19,7 +19,7 @@ const float ARM_ANGLE_MAX[] = { 3.14, 2.094, 2.094, 2.094, 2.618, 2.3 };
 const float CLAW_OPEN_ANGLE = 1.2; // 0.7 default
 const float CLAW_CLOSED_ANGLE = 1.7; // 1.65 default
 
-const float ARM_SPEED = 0.08; //0.06 default
+const float ARM_SPEED = 1; //0.06 default
 const float ARM_MAX_TORQUE = 1.0; // 0.9 default
 const std::string ARM_CHANNEL_NAME = "ARM_COMMAND";
 const float ARM_ERROR_THRESH = 0.05;
@@ -62,6 +62,10 @@ const int RIGHT = 1;
 
 enum OBJECT : uint8_t { NONE, REDBALL, GREENBALL, BLUESQUARE };
 
-const float armOffGround = 0.02;
+const float armOffGround = 0.04;
+
+const double borderOffsetX = 0.1; 
+
+const double wristAddOn = 0; // -M_PI/20
 
 #endif /* CONSTANTS_HPP */

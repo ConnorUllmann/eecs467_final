@@ -14,6 +14,8 @@
 #include "lcmtypes/ttt_turn_t.hpp"
 #include "LcmHandler.hpp"
 #include "BlobDetector.hpp"
+#include "BallPath.hpp"
+#include <deque>
 
 // typedef eecs467::Point<int> IntPoint;
 
@@ -43,7 +45,8 @@ private:
 
 public:
     // Board _board;
-    std::vector<BlobDetector::Blob> _ballPos;
+    std::deque<BlobDetector::Blob> _ballPos;
+    std::vector<eecs467::Point<double>> _ballPredict;
 
 	void init(OBJECT ballColor);
 
@@ -55,7 +58,8 @@ public:
 
 	void launchThreads();
     
-    std::vector<BlobDetector::Blob> getBallPos();
+    std::deque<BlobDetector::Blob> getBallPos();
+    std::vector<eecs467::Point<double>> getBallPredict();
 
     int getDirection();
 

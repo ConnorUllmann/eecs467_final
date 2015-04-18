@@ -4,7 +4,6 @@
 #include "math/angle_functions.hpp"
 #include "CoordinateConverter.hpp"
 #include "GamePlayer.hpp"
-#include "ballpath.cpp"
 #include <stdio.h>
 
 
@@ -25,11 +24,11 @@ OBJECT determineObjectHSV(std::array<float, 3> hsv, const CalibrationInfo &c) {
 	return NONE;
 }
 
-void maskWithPrediction(vector<BlobDetector::Blob> blobs, image_u32_t* im, const CalibrationInfo& c)
+void maskWithPrediction(deque<BlobDetector::Blob> blobs, image_u32_t* im, const CalibrationInfo& c)
 {
     // std::cout << "Number of blobs: " << blobs.size() << std::endl;
     const int DISTANCE = 10;
-    auto pos = predictPath2(blobs);
+    auto pos = BallPath::instance()->predictPath2(blobs, borderOffsetX);
     for (int row = 0; row < im->height; row++) {
         for (int col = 0; col < im->width; col++) {
             for(int i = 0; i < pos.size(); i++) {

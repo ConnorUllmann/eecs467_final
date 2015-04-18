@@ -43,6 +43,10 @@
 #include "imagesource/image_source.h"
 #include "imagesource/image_convert.h"
 
+struct im_time{
+    image_u32_t* im;
+    uint64_t utime;
+};
 
 class CameraHandler {
 private:
@@ -94,9 +98,11 @@ public:
 		pthread_mutex_destroy(&_dataMutex);
 	}
 
-	image_u32_t* getImage() {
+	im_time getImage() {
+        im_time ret;
 		if (_staticImage) {
-			image_u32_t* ret = image_u32_copy(_im);
+			ret.im = image_u32_copy(_im);
+            ret.utime = 0;
 			return ret;
 		}
 		if (!_running) {
@@ -107,25 +113,26 @@ public:
 				pthread_mutex_lock(&_dataMutex);
 				image_u32_destroy(_im);
 				_im = image_convert_u32(&isData);
+
+                ret.utime = isData.utime;
 				pthread_mutex_unlock(&_dataMutex);
 			}
 			_isrc->release_frame(_isrc,
 				&isData);
 		}
 
-		image_u32_t* ret;
 		pthread_mutex_lock(&_dataMutex);
 		if (_im == nullptr) {
-			ret = image_u32_create(1, 1);
-			int size = ret->height * ret->stride;
+			ret.im = image_u32_create(1, 1);
+			int size = ret.im->height * ret.im->stride;
 			for (int i = 0; i < size; ++i) {
-				ret->buf[i] = 0;
+				ret.im->buf[i] = 0;
 			}
 		} else {
-			ret = image_u32_create(_im->width, _im->height);
-			int size = ret->height * ret->stride;
+			ret.im = image_u32_create(_im->width, _im->height);
+			int size = ret.im->height * ret.im->stride;
 			for (int i = 0; i < size; ++i) {
-				ret->buf[i] = _im->buf[i];
+				ret.im->buf[i] = _im->buf[i];
 			}
 		}
 		pthread_mutex_unlock(&_dataMutex);
@@ -188,9 +195,9 @@ int main(int argc, char** argv)
 	}
 
 	// initialize with first image
-	image_u32_t* tempIm = camera.getImage();
-	CalibrationHandler::instance()->calibrateImageSize(tempIm->height, tempIm->width, true);
-	image_u32_destroy(tempIm);
+	im_time tempIm = camera.getImage();
+	CalibrationHandler::instance()->calibrateImageSize(tempIm.im->height, tempIm.im->width, true);
+	image_u32_destroy(tempIm.im);
 
 /*
 	OBJECT color;
@@ -228,7 +235,13 @@ int main(int argc, char** argv)
 		CalibrationInfo calibrationInfo = 
 			CalibrationHandler::instance()->getCalibration();
 		RenderInfo render;
-		render.im = camera.getImage();
+        im_time it = camera.getImage();
+		render.im = it.im;
+        render.utime = it.utime;
+
+// std::cout << "main utime: " << it.utime << std::endl;
+
+
         render.start = GlobalState::instance()->getStart();
 		CalibrationHandler::instance()->clipImage(render.im);
 /*
@@ -264,9 +277,12 @@ int main(int argc, char** argv)
 		if (buttonStates.colorMask) {
 			maskWithColors(render.im, calibrationInfo);
 		}
-        if(buttonStates.predictMask) {
-            maskWithPrediction(GamePlayer::instance()->getBallPos(), render.im, calibrationInfo);
-        }
+
+        // if(buttonStates.predictMask) {
+        //     maskWithPrediction(GamePlayer::instance()->getBallPos(), render.im, calibrationInfo);
+        // }
+
+        
 /*        
 		if (buttonStates.boardMask) {
 			maskWithBoard(render.im, calibrationInfo);

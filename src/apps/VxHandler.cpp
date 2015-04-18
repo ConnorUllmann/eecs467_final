@@ -5,6 +5,7 @@
 
 #include <string>
 #include <iostream>
+#include <deque>
 
 pthread_mutex_t VxHandler::renderMutex;
 
@@ -148,7 +149,7 @@ void* VxHandler::renderThread(void* args) {
         if (renderInfo.start) {
 // cout << " renderInfo.Start " << renderInfo.start<< endl;
             std::vector<float> tealPoints;
-            std::vector<BlobDetector::Blob> ballPos = GamePlayer::instance()->getBallPos();
+            std::deque<BlobDetector::Blob> ballPos = GamePlayer::instance()->getBallPos();
             int direction = GamePlayer::instance()->getDirection();
             for (auto& blob : ballPos) {
                 std::array<int, 2> imageCoords{{blob.x, blob.y}};
@@ -190,6 +191,28 @@ void* VxHandler::renderThread(void* args) {
 
             vx_object_t *text = vxo_text_create(VXO_TEXT_ANCHOR_TOP_LEFT, m.c_str()); 
             vx_buffer_add_back(stateBuf, vxo_pix_coords(VX_ORIGIN_TOP_LEFT, text));
+        }
+
+        if (buttonStates.predictMask) {
+            std::vector<float> magentaPoints;
+            std::vector<eecs467::Point<double>> ballPos = GamePlayer::instance()->getBallPredict();
+            for (auto& blob : ballPos) {
+                std::array<int, 2> imageCoords{{(int)blob.x, (int)blob.y}};
+                std::array<float, 2> screenCoords = 
+                    CoordinateConverter::imageToScreen(imageCoords);
+
+                magentaPoints.push_back(screenCoords[0]);
+                magentaPoints.push_back(screenCoords[1]);
+                magentaPoints.push_back(0);
+            }
+
+            vx_resc_t* verts = vx_resc_copyf(magentaPoints.data(), magentaPoints.size());
+            vx_buffer_add_back(stateBuf, vxo_points(verts, magentaPoints.size() / 3, vxo_points_style(vx_magenta, 5.0f)));  
+
+            string m = "<<#ffaa00>> Predict Mask on ";
+
+            vx_object_t *text = vxo_text_create(VXO_TEXT_ANCHOR_TOP_RIGHT, m.c_str()); 
+            vx_buffer_add_back(stateBuf, vxo_pix_coords(VX_ORIGIN_TOP_RIGHT, text));
         }
 
 		pthread_mutex_unlock(&state->renderMutex);

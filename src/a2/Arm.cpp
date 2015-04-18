@@ -35,7 +35,12 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 		_isMoving = true;
 	}
 	
-	LcmHandler::instance()->getLcm()->publish(ARM_CHANNEL_NAME, &_commands.front());
+	LcmHandler::instance()->getLcm()->publish(ARM_CHANNEL_NAME, &_commands.back());
+
+    while (_commands.size() > 1) {
+        _commands.pop_front();
+    }
+
 	
 	// float numFinished = 0;
 	// float error = 0;
@@ -597,7 +602,7 @@ bool Arm::addCommandMoveStart() {
 
     dynamixel_command_list_t cmdList;
 
-    if (!getCommandToPolar(0.1, 0, armOffGround, cmdList)) {
+    if (!getCommandToPolar(borderOffsetX, 0, armOffGround, cmdList)) {
         std::cout << "can't radiate to R:" << 0.1 << ", A:" << 0 << std::endl;
         return false;
     }
@@ -643,7 +648,10 @@ bool Arm::addCommandMovePoint(double x, double y) {
         return false;
     }
 
-    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, cmdList.commands[0].position_radians);
+    double n = fabs(cmdList.commands[0].position_radians / M_PI * 4);
+    double wristAdd = wristAddOn*n*n;
+
+    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, wristAdd, cmdList.commands[0].position_radians);
 
     Arm::instance()->addCommandList(cmdList);
     return true;

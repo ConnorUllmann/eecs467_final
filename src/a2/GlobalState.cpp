@@ -20,6 +20,7 @@ void RenderInfo::copy(const RenderInfo& info) {
 	greenBlobs = info.greenBlobs;
 	blueBlobs = info.blueBlobs;
 	start = info.start;
+    utime = info.utime;
     // manual = info.manual;
 
 	if (info.im == nullptr) {
@@ -38,6 +39,8 @@ void RenderInfo::copy(const RenderInfo& info) {
 }
 
 void RenderInfo::operator=(const RenderInfo& info) {
+    copy(info);
+    /*
 	if (im == nullptr) {
 		im = image_u32_create(info.im->width, info.im->height);
 	}
@@ -52,6 +55,8 @@ void RenderInfo::operator=(const RenderInfo& info) {
 	greenBlobs = info.greenBlobs;
 	blueBlobs = info.blueBlobs;
     start = info.start;
+    utime = info.utime;
+    */
 }
 
 GlobalState::GlobalState() {

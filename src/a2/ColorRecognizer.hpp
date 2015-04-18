@@ -8,6 +8,7 @@
 #include "CalibrationInfo.hpp"
 #include "BlobDetector.hpp"
 #include "Constants.hpp"
+#include "BallPath.hpp"
 
 #include "imagesource/image_u32.h"
 
@@ -19,7 +20,7 @@ OBJECT determineObjectHSV(std::array<float, 3> hsv, const CalibrationInfo &c);
 
 void maskWithColors(image_u32_t* im, const CalibrationInfo& c);
 
-void maskWithPrediction(std::vector<BlobDetector::Blob> blobs, image_u32_t* im, const CalibrationInfo& c);
+void maskWithPrediction(std::deque<BlobDetector::Blob> blobs, image_u32_t* im, const CalibrationInfo& c);
 
 void maskWithBoard(image_u32_t* im, const CalibrationInfo& c);
 

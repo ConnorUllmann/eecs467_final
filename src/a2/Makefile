@@ -12,7 +12,7 @@ LIB_A2_OBJS = CalibrationHandler.o \
 	CoordinateConverter.o ColorRecognizer.o \
 	Board.o BlobDetector.o LcmHandler.o \
 	Arm.o GamePlayer.o \
-	GlobalState.o
+	GlobalState.o BallPath.o
 
 ALL = $(LIB_A2)
 

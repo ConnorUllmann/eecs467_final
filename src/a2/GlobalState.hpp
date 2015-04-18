@@ -13,6 +13,8 @@ struct RenderInfo {
 	std::vector<std::array<float, 2>> greenBlobs;
 	std::vector<std::array<float, 2>> blueBlobs;
 	bool start;
+
+    uint64_t utime;
     // bool manual;
 
 	RenderInfo();

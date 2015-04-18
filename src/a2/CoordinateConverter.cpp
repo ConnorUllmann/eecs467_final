@@ -72,6 +72,7 @@ std::array<float, 2> CoordinateConverter::imageToGlobal(const std::array<int, 2>
 	homogenousPt(1) = arr[1];
 	homogenousPt(2) = 1;
 
+
 	const Matrix<float>& transform =
 		CalibrationHandler::instance()->getImageToBoardTransform();
 
