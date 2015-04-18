@@ -459,6 +459,7 @@ void VxHandler::parameterEventHandler (parameter_listener_t *pl,
 
     } else if (strName == "butRun") {
         if (CalibrationHandler::instance()->isIdle()) {
+            Arm::instance()->addCommandMoveStart();
             if (buttonStates.manual) {
                 buttonStates.manual = false;
                 std::cout << "turn off manual mode to start auto mode\n";

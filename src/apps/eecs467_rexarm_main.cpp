@@ -230,6 +230,8 @@ int main(int argc, char** argv)
 	// vx
 	VxHandler vx(1024, 768);
 	vx.launchThreads();
+
+    Arm::instance()->addCommandLimp();
 	// Arm::instance()->addHomeCommand(0);
 	while (1) {
 		CalibrationInfo calibrationInfo = 

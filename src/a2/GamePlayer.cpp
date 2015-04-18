@@ -57,8 +57,8 @@ void* GamePlayer::publishMessages(void* args){
 void* GamePlayer::gameThread(void* args) {
 	GamePlayer* state = (GamePlayer*) args;
 
-    int newDir = STATION;
-;
+    int newDir = UP;
+
     while (1) {
         while (!GlobalState::instance()->getStart()) {usleep(10000);};
 
@@ -93,10 +93,21 @@ void* GamePlayer::gameThread(void* args) {
             std::cout << "Detected multiple ball\n";
         }
 
+        std::array<int, 2> ballIm;
+        ballIm[0] = blobs[0].x;
+        ballIm[1] = blobs[0].y;
+        auto ballGlob = CoordinateConverter::imageToGlobal(ballIm);
+
+
+// std::cout << "detected blob "<<  blobs[0].x << "," << blobs[0].y << endl;
+
 // std::cout << "blob size " << blobs.size() << "\n";
 		
         if (!state->_ballPos.empty()) {
             newDir = state->calculateBallDirection(state->_ballPos.back(), blobs[0]);
+
+// cout << "newDir " << newDir << endl;
+
             // if (state->_ballPos.size() >= 1000) {
             //     state->_ballPos.clear();
             // }
@@ -110,26 +121,77 @@ void* GamePlayer::gameThread(void* args) {
             op[1] = GamePlayer::instance()->_ballPredict.back().y;
             auto op1 = CoordinateConverter::imageToGlobal(op);
 
+
+
 // cout << "pos " << pos.back().x << ", " << pos.back().y << " global " << op1[0] << "," << op1[1] << endl;
-            if (op1[0] < 6*borderOffsetX) {
+
+            if (op1[0] < 6*borderOffsetX && ballGlob[0] > 0.5*borderOffsetX) {
+                if (op1[1] > 0.130) {
+                    op1[1] = 0.130;
+                }
+                if (op1[1] < -0.130) {
+                    op1[1] = -0.130;
+                }
+
+                bool startSwat = false;
+
+                if(GamePlayer::instance()->_ballPredict.size() >= 2)
+                {   
+                    // cout << "Ball predict stuff" << endl;
+                    std::array<int, 2> op2;
+                    op2[0] = GamePlayer::instance()->_ballPredict[GamePlayer::instance()->_ballPredict.size()-2].x;
+                    op2[1] = GamePlayer::instance()->_ballPredict[GamePlayer::instance()->_ballPredict.size()-2].y;
+                    // cout << "Set up image point" << endl;
+                    auto op3 = CoordinateConverter::imageToGlobal(op2);
+                    // cout << "Converted image point to global" << endl;
+                    if(fabs(ballGlob[0] - borderOffsetX) / ((op1[0] - op3[0]) / BallPath::instance()->TIME_DIFF) <= 0.001/4)
+                        startSwat = true;
+                    // cout << "Done --------------------" << endl; 
+                }
+                else
+                {
+                    startSwat = ballGlob[0] < 1.5*borderOffsetX;
+                }
+                // cout << "After startSwat is set" << endl;
+
+                // Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+
+// cout << "start swat " << startSwat << endl;
+
                 Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+
+                // if (startSwat) {
+                //     // cout << "Inside startSwat if block" << endl;
+                //     // usleep(1000000/10000); //0.0001
+                //     // Arm::instance()->addCommandMoveSwat();
+                //     Arm::instance()->addCommandMovePointClaw(borderOffsetX, op1[1]);
+                // }
+                // else {
+                //     Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+                // }
+
+
+                // cout << "Arm command set" << endl;
             }
             else {
-                Arm::instance()->addCommandMoveStart();
+               Arm::instance()->addCommandMoveStart();
             }
 
+        }
+        else {
+           Arm::instance()->addCommandMoveStart();
         }
 
 
         if (newDir != STATION) {
 
-// std::cout << "new dir " << newDir << "\n";
+// std::cout << "new not station dir " << newDir << "\n";
 
             if ((state->_direction == UP && newDir == DOWN) ||
                     (state->_direction == DOWN && newDir == UP) ) {
                 state->_ballPos.clear();
             }
-            // state->_direction = newDir;
+            state->_direction = newDir;
 
             if (state->_ballPos.size() == 50) {
                 state->_ballPos.pop_front();

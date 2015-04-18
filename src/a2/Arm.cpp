@@ -15,6 +15,10 @@ Arm::Arm() : _isMoving(false) {
 		printf("armMutex not initialized\n");
 		exit(1);
 	}
+    if (pthread_mutex_init(&_armMutex, NULL)) {
+        printf("armMutex not initialized\n");
+        exit(1);
+    }
 }
 
 Arm* Arm::instance() {
@@ -27,7 +31,12 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 	_list = *list;
 	//std::cout << "statuses.size() " << _list.statuses.size() << std::endl;
 	pthread_mutex_unlock(&_armMutex);
-	
+
+    _isMoving = true;
+
+    LcmHandler::instance()->getLcm()->publish(ARM_CHANNEL_NAME, &_command);
+
+/*	
 	if(_commands.empty()) {
 		_isMoving = false;
 		return;
@@ -37,6 +46,9 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 	
 	LcmHandler::instance()->getLcm()->publish(ARM_CHANNEL_NAME, &_commands.back());
 
+    _lastCommand = _commands.back();
+
+ 
     while (_commands.size() > 1) {
         _commands.pop_front();
     }
@@ -56,6 +68,7 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 	// }
 	// printf("\nerror: %f\n", error);
 	// if (numFinished >= 6) {  //error < ARM_ERROR_THRESH) {
+
     if (1) {
 		pthread_mutex_lock(&_armMutex);
 		
@@ -79,6 +92,7 @@ void Arm::updateServoAngles(const dynamixel_status_list_t* list) {
 
 		pthread_mutex_unlock(&_armMutex);
 	}
+ */   
 }
 
 
@@ -218,12 +232,14 @@ void Arm::addHomeCommand() {
 	}
 	list.commands[0].position_radians = 0.5;
 	list.len = list.commands.size();
-	_commands.push_back(list);
+	// _commands.push_back(list);
+    _command = list;
 
 	for (int i= 1; i < 6; ++i) {
 		list.commands[0].position_radians = 0;
 	}
-	_commands.push_back(list);
+	// _commands.push_back(list);
+    _command = list;
 	
 	pthread_mutex_unlock(&_armMutex);
 }
@@ -246,14 +262,16 @@ void Arm::addHomeCommand(float baseAngle) {
 	}
 	list.len = list.commands.size();
 	pthread_mutex_lock(&_armMutex);
-	_commands.push_back(list);
+	// _commands.push_back(list);
+    _command = list;
 	_isMoving = true;
 	pthread_mutex_unlock(&_armMutex);
 }
 
 void Arm::addCommandList(const dynamixel_command_list_t& cmd) {
 	pthread_mutex_lock(&_armMutex);
-	_commands.push_back(cmd);
+	// _commands.push_back(cmd);
+    _command = cmd;
 	_isMoving = true;
 	pthread_mutex_unlock(&_armMutex);
 }
@@ -261,7 +279,8 @@ void Arm::addCommandList(const dynamixel_command_list_t& cmd) {
 void Arm::addCommandLists(const std::vector<dynamixel_command_list_t>& commands) {
 	pthread_mutex_lock(&_armMutex);
 	for (auto& command : commands) {
-		_commands.push_back(command);
+		// _commands.push_back(command);
+        _command = command;
 	}
 	_isMoving = true;
 	pthread_mutex_unlock(&_armMutex);
@@ -552,34 +571,53 @@ bool Arm::addCommandMoveRadiate(double r) {
 bool Arm::addCommandMoveSwat() {     
     // std::array<float, 2> arr;
 
-    dynamixel_status_list_t status = Arm::instance()->getCurrentStatus();
+    // dynamixel_status_list_t status = Arm::instance()->getCurrentStatus();
 
-    dynamixel_command_list_t cmdList;
+    // dynamixel_command_list_t cmdList;
 
-    for (int i = 0; i < 6; ++i) {
-        dynamixel_command_t cmd;
-        cmd.position_radians = status.statuses[i].position_radians;
-        cmd.max_torque = ARM_MAX_TORQUE;
-        cmd.speed = ARM_SPEED*1.5;
-        cmdList.commands.push_back(cmd);
-    }
+    // for (int i = 0; i < 6; ++i) {
+    //     dynamixel_command_t cmd;
+    //     cmd.position_radians = status.statuses[i].position_radians;
+    //     cmd.max_torque = ARM_MAX_TORQUE;
+    //     cmd.speed = ARM_SPEED*1.5;
+    //     cmdList.commands.push_back(cmd);
+    // }
 
-    cmdList.len = cmdList.commands.size();
+    // cmdList.len = cmdList.commands.size();
 
-    setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, status.statuses[0].position_radians);
+    // dynamixel_command_list_t cmdList = _lastCommand;
+    dynamixel_command_list_t cmdList = _command;
 
-    cmdList.commands[1].position_radians = status.statuses[1].position_radians - 0.025;
-    cmdList.commands[2].position_radians = status.statuses[2].position_radians - 0.02;
+    // setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, _lastCommand.commands[0].position_radians);
+    setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, _command.commands[0].position_radians);
+
+    // setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, status.statuses[0].position_radians);
+
+    // cmdList.commands[1].position_radians = status.statuses[1].position_radians - 0.025;
+    // cmdList.commands[2].position_radians = status.statuses[2].position_radians - 0.02;
 
 
-    while (Arm::instance()->inMotion()) {}
-    Arm::instance()->addCommandList(cmdList);
+    // while (Arm::instance()->inMotion()) {}
+
+    // if (Arm::instance()->_commands.empty()) {
+        Arm::instance()->addCommandList(cmdList);
+    // }
+    // else {
+    //     Arm::instance()->_commands.back() = cmdList;
+    // }
+ 
 
     usleep(1000000/4); // 0.25 sec
 
-    setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, status.statuses[0].position_radians);
-
-    Arm::instance()->addCommandList(cmdList);
+    // setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, 0, status.statuses[0].position_radians);
+    // setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, _lastCommand.commands[0].position_radians);
+    setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, _command.commands[0].position_radians);
+    // if (Arm::instance()->_commands.empty()) {
+        Arm::instance()->addCommandList(cmdList);
+    // }
+    // else {
+    //     Arm::instance()->_commands.back() = cmdList;
+    // }
 
     return true;
 }
@@ -652,6 +690,25 @@ bool Arm::addCommandMovePoint(double x, double y) {
     double wristAdd = wristAddOn*n*n;
 
     setCommandClawParams(cmdList, CLAW_CLOSED_ANGLE, wristAdd, cmdList.commands[0].position_radians);
+
+    Arm::instance()->addCommandList(cmdList);
+    return true;
+}
+
+bool Arm::addCommandMovePointClaw(double x, double y) {
+
+    dynamixel_command_list_t cmdList;
+
+    if (!Arm::instance()->getCommandToPoint(x, y, armOffGround, cmdList)) {
+        std::cout << "can't move to x:" << x << ", y:" << y << std::endl;
+        return false;
+    }
+
+    double n = fabs(cmdList.commands[0].position_radians / M_PI * 4);
+    double wristAdd = wristAddOn*n*n;
+
+    // setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, _lastCommand.commands[0].position_radians);
+    setCommandClawParams(cmdList, CLAW_OPEN_ANGLE, 0, _command.commands[0].position_radians);
 
     Arm::instance()->addCommandList(cmdList);
     return true;

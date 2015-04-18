@@ -14,13 +14,20 @@ class Arm {
 private:
 	dynamixel_status_list_t _list;
 	mutable pthread_mutex_t _armMutex;
+    mutable pthread_mutex_t _commandMutex;
+
 	Arm();
 	static Arm* _instance;
 	bool _isMoving;
 	std::array<float, 6> _targetPos;
 	
-	std::deque<dynamixel_command_list_t> _commands;
 public:
+    std::deque<dynamixel_command_list_t> _commands;
+
+    dynamixel_command_list_t _command;
+
+    // dynamixel_command_list_t _lastCommand;
+
 	static Arm* instance();
 
 	void updateServoAngles(const dynamixel_status_list_t* list);
@@ -80,6 +87,8 @@ public:
     bool addCommandLimp();
 
     bool addCommandMovePoint(double x, double y);
+
+    bool addCommandMovePointClaw(double x, double y);
 
     bool addCommandMovePoint(std::array<float, 2> coords);
 };
