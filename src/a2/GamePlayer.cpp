@@ -85,7 +85,8 @@ void* GamePlayer::gameThread(void* args) {
         if (blobs.size() <= 0) {
             std::cout << "Can't detect any green ball\n";
             pthread_mutex_unlock(&state->_GamePlayerMutex);
-            usleep(100000);
+            Arm::instance()->addCommandMoveStart();
+            // usleep(100000);
             continue;
         }
 
@@ -113,75 +114,86 @@ void* GamePlayer::gameThread(void* args) {
             // }
         }
 
-        GamePlayer::instance()->_ballPredict = BallPath::instance()->predictPath2(GamePlayer::instance()->getBallPos(), borderOffsetX);
-        if(GamePlayer::instance()->_ballPredict.size() > 0)
-        {
-            std::array<int, 2> op;
-            op[0] = GamePlayer::instance()->_ballPredict.back().x;
-            op[1] = GamePlayer::instance()->_ballPredict.back().y;
-            auto op1 = CoordinateConverter::imageToGlobal(op);
-
-
-
-// cout << "pos " << pos.back().x << ", " << pos.back().y << " global " << op1[0] << "," << op1[1] << endl;
-
-            if (op1[0] < 6*borderOffsetX && ballGlob[0] > 0.5*borderOffsetX) {
-                if (op1[1] > 0.130) {
-                    op1[1] = 0.130;
-                }
-                if (op1[1] < -0.130) {
-                    op1[1] = -0.130;
-                }
-
-                bool startSwat = false;
-
-                if(GamePlayer::instance()->_ballPredict.size() >= 2)
-                {   
-                    // cout << "Ball predict stuff" << endl;
-                    std::array<int, 2> op2;
-                    op2[0] = GamePlayer::instance()->_ballPredict[GamePlayer::instance()->_ballPredict.size()-2].x;
-                    op2[1] = GamePlayer::instance()->_ballPredict[GamePlayer::instance()->_ballPredict.size()-2].y;
-                    // cout << "Set up image point" << endl;
-                    auto op3 = CoordinateConverter::imageToGlobal(op2);
-                    // cout << "Converted image point to global" << endl;
-                    if(fabs(ballGlob[0] - borderOffsetX) / ((op1[0] - op3[0]) / BallPath::instance()->TIME_DIFF) <= 0.001/4)
-                        startSwat = true;
-                    // cout << "Done --------------------" << endl; 
-                }
-                else
-                {
-                    startSwat = ballGlob[0] < 1.5*borderOffsetX;
-                }
-                // cout << "After startSwat is set" << endl;
-
-                // Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
-
-// cout << "start swat " << startSwat << endl;
+        if (ballGlob[0] < 2*borderOffsetX) {
+            Arm::instance()->addCommandMovePoint(borderOffsetX, ballGlob[1]);
+        }
+        else {
+            GamePlayer::instance()->_ballPredict = BallPath::instance()->predictPath2(GamePlayer::instance()->getBallPos(), borderOffsetX);
+            if(GamePlayer::instance()->_ballPredict.size() == 1 || GamePlayer::instance()->_ballPredict.size() == 2)
+            {
+                std::array<int, 2> op;
+                op[0] = GamePlayer::instance()->_ballPredict.back().x;
+                op[1] = GamePlayer::instance()->_ballPredict.back().y;
+                auto op1 = CoordinateConverter::imageToGlobal(op);
 
                 Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+            }
+            else if(GamePlayer::instance()->_ballPredict.size() > 2)
+            {
+                std::array<int, 2> op;
+                op[0] = GamePlayer::instance()->_ballPredict.back().x;
+                op[1] = GamePlayer::instance()->_ballPredict.back().y;
+                auto op1 = CoordinateConverter::imageToGlobal(op);
 
-                // if (startSwat) {
-                //     // cout << "Inside startSwat if block" << endl;
-                //     // usleep(1000000/10000); //0.0001
-                //     // Arm::instance()->addCommandMoveSwat();
-                //     Arm::instance()->addCommandMovePointClaw(borderOffsetX, op1[1]);
-                // }
-                // else {
-                //     Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
-                // }
+    // cout << "pos " << pos.back().x << ", " << pos.back().y << " global " << op1[0] << "," << op1[1] << endl;
+
+                if (op1[0] < 6*borderOffsetX && ballGlob[0] > 0.5*borderOffsetX) {
+                    if (op1[1] > 0.130) {
+                        op1[1] = 0.130;
+                    }
+                    if (op1[1] < -0.130) {
+                        op1[1] = -0.130;
+                    }
+
+                    bool startSwat = false;
+
+                    if(GamePlayer::instance()->_ballPredict.size() >= 2)
+                    {   
+                        // cout << "Ball predict stuff" << endl;
+                        std::array<int, 2> op2;
+                        op2[0] = GamePlayer::instance()->_ballPredict[GamePlayer::instance()->_ballPredict.size()-2].x;
+                        op2[1] = GamePlayer::instance()->_ballPredict[GamePlayer::instance()->_ballPredict.size()-2].y;
+                        // cout << "Set up image point" << endl;
+                        auto op3 = CoordinateConverter::imageToGlobal(op2);
+                        // cout << "Converted image point to global" << endl;
+                        if(fabs(ballGlob[0] - borderOffsetX) / ((op1[0] - op3[0]) / BallPath::instance()->TIME_DIFF) <= 0.001/4)
+                            startSwat = true;
+                        // cout << "Done --------------------" << endl; 
+                    }
+                    else
+                    {
+                        startSwat = ballGlob[0] < 1.5*borderOffsetX;
+                    }
+                    // cout << "After startSwat is set" << endl;
+
+                    // Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+
+    // cout << "start swat " << startSwat << endl;
+
+                    Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+
+                    // if (startSwat) {
+                    //     // cout << "Inside startSwat if block" << endl;
+                    //     // usleep(1000000/10000); //0.0001
+                    //     // Arm::instance()->addCommandMoveSwat();
+                    //     Arm::instance()->addCommandMovePointClaw(borderOffsetX, op1[1]);
+                    // }
+                    // else {
+                    //     Arm::instance()->addCommandMovePoint(borderOffsetX, op1[1]);
+                    // }
 
 
-                // cout << "Arm command set" << endl;
+                    // cout << "Arm command set" << endl;
+                }
+                else {
+                   Arm::instance()->addCommandMoveStart();
+                }
+
             }
             else {
                Arm::instance()->addCommandMoveStart();
             }
-
         }
-        else {
-           Arm::instance()->addCommandMoveStart();
-        }
-
 
         if (newDir != STATION) {
 
